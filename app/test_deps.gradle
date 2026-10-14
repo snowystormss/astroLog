@@ -1,0 +1,7 @@
+apply plugin: 'java'
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation 'de.thmac:swisseph:2.02.00-1'
+}

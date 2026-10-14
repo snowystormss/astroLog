@@ -1,0 +1,6 @@
+{
+  "name": "AstroLog",
+  "description": "Astrology profile and life events predictor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
