@@ -273,19 +273,24 @@ fun parseInsight(block: String): InsightSlide {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, prominentSign: String, pageOffset: Float) {
-    val slideColors = listOf(
-        Color(0xFF0F172A), // slate-900
-        Color(0xFF18181B), // zinc-900
-        Color(0xFF1C1917), // stone-900
-        Color(0xFF2E1065), // violet-950
-        Color(0xFF172554), // blue-950
-        Color(0xFF064E3B), // emerald-950
-        Color(0xFF3F000F), // rose-950
-        Color(0xFF022C22), // teal-950
-        Color(0xFF28190E), // dark orange-brown
-        Color(0xFF1E1E24)  // dark grey
+    val isDark = com.example.ui.theme.LocalIsDarkTheme.current
+    val darkSlideColors = listOf(
+        Color(0xFF0C0A09), // Black obsidian
+        Color(0xFF16100D), // Deep cocoa black
+        Color(0xFF1D140F), // Espresso brown
+        Color(0xFF140D0A), // Black coffee
+        Color(0xFF231710), // Rich dark brown
+        Color(0xFF19110D)  // Deep chestnut black
     )
-    val bgColor = slideColors[pageIndex % slideColors.size]
+    val lightSlideColors = listOf(
+        Color(0xFFFAF7F2), // Soft warm cream
+        Color(0xFFFFFDF9), // Warm white
+        Color(0xFFF7F1E6), // Almond cream
+        Color(0xFFFCF9F4), // Pure ivory
+        Color(0xFFF4ECE0), // Oat cream
+        Color(0xFFFDFBF7)  // Pearl cream
+    )
+    val bgColor = if (isDark) darkSlideColors[pageIndex % darkSlideColors.size] else lightSlideColors[pageIndex % lightSlideColors.size]
     
     var showDeepDive by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -326,14 +331,14 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
         ) {
             Text(
                 text = slide.title.uppercase(),
-                color = Color.White.copy(alpha = 0.6f),
+                color = if (isDark) Color(0xFFD49B6A) else Color(0xFF7A4E2D),
                 style = MaterialTheme.typography.labelLarge,
                 letterSpacing = 3.sp
             )
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 text = slide.advice,
-                color = Color.White,
+                color = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     lineHeight = 44.sp,
                     letterSpacing = (-0.5).sp
@@ -355,8 +360,8 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
                 modifier = Modifier.height(52.dp),
                 shape = RoundedCornerShape(26.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White.copy(alpha = 0.15f),
-                    contentColor = Color.White
+                    containerColor = if (isDark) Color(0xFFF7F0EB).copy(alpha = 0.12f) else Color(0xFF281C16).copy(alpha = 0.08f),
+                    contentColor = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16)
                 )
             ) {
                 Text(
@@ -376,9 +381,18 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
                     }
                     context.startActivity(android.content.Intent.createChooser(sendIntent, "Share Insight"))
                 },
-                modifier = Modifier.size(52.dp).background(Color.White.copy(alpha = 0.15f), CircleShape)
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(
+                        if (isDark) Color(0xFFF7F0EB).copy(alpha = 0.12f) else Color(0xFF281C16).copy(alpha = 0.08f), 
+                        CircleShape
+                    )
             ) {
-                Icon(Icons.Default.Share, contentDescription = "Share", tint = Color.White)
+                Icon(
+                    Icons.Default.Share, 
+                    contentDescription = "Share", 
+                    tint = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16)
+                )
             }
             
             if (slide.timeMillis != null || slide.title.contains("TIMING") || slide.title.contains("FUTURE")) {
@@ -387,7 +401,7 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
                     modifier = Modifier.height(52.dp),
                     shape = RoundedCornerShape(26.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
@@ -409,8 +423,8 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
         ModalBottomSheet(
             onDismissRequest = { showDeepDive = false },
             sheetState = sheetState,
-            containerColor = bgColor,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+            containerColor = if (isDark) Color(0xFF18120F) else Color(0xFFFFFFFF),
+            dragHandle = { BottomSheetDefaults.DragHandle(color = if (isDark) Color(0xFFD49B6A).copy(alpha = 0.4f) else Color(0xFF7A4E2D).copy(alpha = 0.3f)) }
         ) {
             Column(
                 modifier = Modifier
@@ -421,7 +435,7 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
                 Text(
                     text = slide.title.uppercase(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = if (isDark) Color(0xFFD49B6A) else Color(0xFF7A4E2D),
                     letterSpacing = 2.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -430,7 +444,7 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
                     style = MaterialTheme.typography.bodyLarge.copy(
                         lineHeight = 32.sp
                     ),
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16)
                 )
                 Spacer(modifier = Modifier.height(64.dp))
             }
@@ -440,17 +454,18 @@ fun SlidePage(slide: InsightSlide, pageIndex: Int, affirmationText: String?, pro
 
 @Composable
 fun DailyAffirmationWidget(text: String, prominentSign: String) {
+    val isDark = com.example.ui.theme.LocalIsDarkTheme.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.06f)
+            containerColor = if (isDark) Color(0xFF1E1612).copy(alpha = 0.85f) else Color(0xFFFFFFFF).copy(alpha = 0.9f)
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            Color.White.copy(alpha = 0.12f)
+            if (isDark) Color(0xFF5E4535).copy(alpha = 0.5f) else Color(0xFFE2D6C8)
         )
     ) {
         Row(
@@ -462,13 +477,13 @@ fun DailyAffirmationWidget(text: String, prominentSign: String) {
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
+                    .background(if (isDark) Color(0xFF382315) else Color(0xFFF3ECE2), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = "Affirmation Sparkle",
-                    tint = Color(0xFFFFD700),
+                    tint = if (isDark) Color(0xFFD49B6A) else Color(0xFF7A4E2D),
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -477,7 +492,7 @@ fun DailyAffirmationWidget(text: String, prominentSign: String) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "COSMIC AFFIRMATION",
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = if (isDark) Color(0xFFC5B4A8) else Color(0xFF6B584B),
                         style = MaterialTheme.typography.labelSmall,
                         letterSpacing = 1.2.sp,
                         fontWeight = FontWeight.Bold
@@ -485,7 +500,7 @@ fun DailyAffirmationWidget(text: String, prominentSign: String) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "•",
-                        color = Color.White.copy(alpha = 0.3f),
+                        color = if (isDark) Color(0xFF5E4535) else Color(0xFFE2D6C8),
                         style = MaterialTheme.typography.labelSmall
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -500,7 +515,7 @@ fun DailyAffirmationWidget(text: String, prominentSign: String) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "\"$text\"",
-                    color = Color.White,
+                    color = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         lineHeight = 18.sp,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic

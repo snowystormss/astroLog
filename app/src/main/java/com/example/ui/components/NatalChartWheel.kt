@@ -99,12 +99,11 @@ fun NatalChartWheel(profile: UserProfile, modifier: Modifier = Modifier, onPlane
         label = "star_rotation"
     )
     
-    val currentMonth = java.util.Calendar.getInstance().get(java.util.Calendar.MONTH)
-    val seasonColorTint = when (currentMonth) {
-        in 2..4 -> Color(0x334CAF50) // Spring (Greenish)
-        in 5..7 -> Color(0x33FFEB3B) // Summer (Yellowish)
-        in 8..10 -> Color(0x33FF9800) // Fall (Orangish)
-        else -> Color(0x332196F3) // Winter (Blueish)
+    val isDark = com.example.ui.theme.LocalIsDarkTheme.current
+    val wheelBackgroundTint = if (isDark) {
+        Color(0xFF1E1612).copy(alpha = 0.5f)
+    } else {
+        Color(0xFFF3ECE2).copy(alpha = 0.6f)
     }
 
     val stars = remember { 
@@ -176,14 +175,14 @@ fun NatalChartWheel(profile: UserProfile, modifier: Modifier = Modifier, onPlane
             val centerOffset = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
             
             // Draw background and stars
-            drawRect(color = seasonColorTint)
+            drawRect(color = wheelBackgroundTint)
             withTransform({
                 rotate(rotation, centerOffset)
             }) {
                 stars.forEachIndexed { i, offset ->
                     val rx = centerOffset.x + offset.x * size.width
                     val ry = centerOffset.y + offset.y * size.height
-                    drawCircle(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f), starSizes[i] * scaleFactor, androidx.compose.ui.geometry.Offset(rx, ry))
+                    drawCircle(if (isDark) androidx.compose.ui.graphics.Color(0xFFF7E7CE).copy(alpha = 0.6f) else androidx.compose.ui.graphics.Color(0xFF8B5E3C).copy(alpha = 0.35f), starSizes[i] * scaleFactor, androidx.compose.ui.geometry.Offset(rx, ry))
                 }
             }
 

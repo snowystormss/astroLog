@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -47,30 +48,44 @@ fun AppNavigation(
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                val itemColors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Home, contentDescription = "Daily") },
                     label = { Text("Daily") },
                     selected = currentRoute == "home",
-                    onClick = { navController.navigate("home") { launchSingleTop = true } }
+                    onClick = { navController.navigate("home") { launchSingleTop = true } },
+                    colors = itemColors
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.DateRange, contentDescription = "Calendar") },
                     label = { Text("Calendar") },
                     selected = currentRoute == "calendar",
-                    onClick = { navController.navigate("calendar") { launchSingleTop = true } }
+                    onClick = { navController.navigate("calendar") { launchSingleTop = true } },
+                    colors = itemColors
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
                     label = { Text("Profile") },
                     selected = currentRoute == "profile",
-                    onClick = { navController.navigate("profile") { launchSingleTop = true } }
+                    onClick = { navController.navigate("profile") { launchSingleTop = true } },
+                    colors = itemColors
                 )
                 NavigationBarItem(
                     icon = { Icon(Icons.Default.Favorite, contentDescription = "Compatibility") },
                     label = { Text("Compatibility") },
                     selected = currentRoute == "compatibility",
-                    onClick = { navController.navigate("compatibility") { launchSingleTop = true } }
+                    onClick = { navController.navigate("compatibility") { launchSingleTop = true } },
+                    colors = itemColors
                 )
             }
         }

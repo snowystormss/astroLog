@@ -391,11 +391,16 @@ fun CompatibilityDetailScreen(
                     val slides = blocks.map { parseCompatibility(it) }
                     val pagerState = rememberPagerState(pageCount = { slides.size })
                     
-                    val slideColors = listOf(
-                        Color(0xFF0F172A), Color(0xFF18181B), Color(0xFF1C1917),
-                        Color(0xFF2E1065), Color(0xFF172554), Color(0xFF064E3B),
-                        Color(0xFF3F000F), Color(0xFF022C22), Color(0xFF1E1E24)
+                    val isDark = com.example.ui.theme.LocalIsDarkTheme.current
+                    val darkSlideColors = listOf(
+                        Color(0xFF140E0B), Color(0xFF1F1510), Color(0xFF18110D),
+                        Color(0xFF271A12), Color(0xFF1B130E), Color(0xFF221711)
                     )
+                    val lightSlideColors = listOf(
+                        Color(0xFFFFFFFF), Color(0xFFFAF7F2), Color(0xFFF5EFE6),
+                        Color(0xFFFFFDF9), Color(0xFFF2EBE1), Color(0xFFFAF5ED)
+                    )
+                    val slideColors = if (isDark) darkSlideColors else lightSlideColors
 
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text("THE BOND", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start=24.dp, bottom=16.dp), color=MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 2.sp)
@@ -449,6 +454,7 @@ fun TimingCardSection(slide: CompatibilitySlide) {
 fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
     var showDeepDive by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isDark = com.example.ui.theme.LocalIsDarkTheme.current
 
     OutlinedCard(
         modifier = Modifier
@@ -457,7 +463,10 @@ fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
             .clickable { showDeepDive = true },
         shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.outlinedCardColors(containerColor = bgColor),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isDark) Color(0xFF5E4535).copy(alpha = 0.4f) else Color(0xFFE2D6C8)
+        )
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(32.dp)) {
             Column(
@@ -466,14 +475,14 @@ fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
             ) {
                 Text(
                     text = slide.title.uppercase(),
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = if (isDark) Color(0xFFD49B6A) else Color(0xFF7A4E2D),
                     style = MaterialTheme.typography.labelLarge,
                     letterSpacing = 2.sp
                 )
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
                     text = slide.summary,
-                    color = Color.White,
+                    color = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         lineHeight = 36.sp,
                         letterSpacing = (-0.5).sp
@@ -487,7 +496,7 @@ fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
                 text = "TAP TO DECODE",
                 style = MaterialTheme.typography.labelSmall,
                 letterSpacing = 2.sp,
-                color = Color.White.copy(alpha = 0.5f),
+                color = if (isDark) Color(0xFFC5B4A8) else Color(0xFF6B584B),
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp)
             )
         }
@@ -497,8 +506,8 @@ fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
         ModalBottomSheet(
             onDismissRequest = { showDeepDive = false },
             sheetState = sheetState,
-            containerColor = bgColor,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+            containerColor = if (isDark) Color(0xFF18120F) else Color(0xFFFFFFFF),
+            dragHandle = { BottomSheetDefaults.DragHandle(color = if (isDark) Color(0xFFD49B6A).copy(alpha = 0.4f) else Color(0xFF7A4E2D).copy(alpha = 0.3f)) }
         ) {
             Column(
                 modifier = Modifier
@@ -509,14 +518,14 @@ fun CompatibilitySlideCard(slide: CompatibilitySlide, bgColor: Color) {
                 Text(
                     text = slide.title.uppercase(),
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.6f),
+                    color = if (isDark) Color(0xFFD49B6A) else Color(0xFF7A4E2D),
                     letterSpacing = 2.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = slide.deepDive,
                     style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 32.sp),
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = if (isDark) Color(0xFFF7F0EB) else Color(0xFF281C16)
                 )
                 Spacer(modifier = Modifier.height(64.dp))
             }

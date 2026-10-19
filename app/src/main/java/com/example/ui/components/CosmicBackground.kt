@@ -57,37 +57,37 @@ fun CosmicBackground(
     )
     
     val targetNebulaColor = if (isDark) {
-        Color(0xFF1E1B4B).copy(alpha = 0.45f) // Deep indigo
+        Color(0xFF2A180E).copy(alpha = 0.55f) // Warm dark espresso brown nebula
     } else {
-        Color(0xFFEEF2FF).copy(alpha = 0.65f) // Soft slate blue
+        Color(0xFFF5ECE1).copy(alpha = 0.75f) // Soft warm cream cloud
     }
     val nebulaColor by androidx.compose.animation.animateColorAsState(targetValue = targetNebulaColor, animationSpec = tween(500), label = "nebula")
     
     val targetAccentColor = if (isDark) {
-        Color(0xFF3B0764).copy(alpha = 0.35f) // Deep purple
+        Color(0xFF3B1E10).copy(alpha = 0.45f) // Rich deep amber-brown nebula
     } else {
-        Color(0xFFFDF4FF).copy(alpha = 0.70f) // Soft lavender blush
+        Color(0xFFFFFFFF).copy(alpha = 0.85f) // Soft luminous white glow
     }
     val accentColor by androidx.compose.animation.animateColorAsState(targetValue = targetAccentColor, animationSpec = tween(500), label = "accent")
 
     val targetBackgroundColor = customBackgroundColor ?: if (isDark) {
-        Color(0xFF090A17) // Space night
+        Color(0xFF0C0A09) // Warm obsidian black
     } else {
-        Color(0xFFF8FAFC) // Slate light 50
+        Color(0xFFFAF7F2) // Soft warm cream
     }
     val backgroundColor by androidx.compose.animation.animateColorAsState(targetValue = targetBackgroundColor, animationSpec = tween(500), label = "background")
 
     val targetStarColor = if (isDark) {
-        Color(0xFFE2E8F0) // Glowing white/gray
+        Color(0xFFF7E7CE) // Champagne gold / warm starlight
     } else {
-        Color(0xFF6366F1).copy(alpha = 0.7f) // Indigo star glow
+        Color(0xFF9E7B5E).copy(alpha = 0.65f) // Soft warm mocha stars
     }
     val starColor by androidx.compose.animation.animateColorAsState(targetValue = targetStarColor, animationSpec = tween(500), label = "star")
 
     val targetLineColor = if (isDark) {
-        Color.White.copy(alpha = 0.04f)
+        Color(0xFFD49B6A).copy(alpha = 0.08f) // Subtle amber-brown orbit lines
     } else {
-        Color(0xFF4F46E5).copy(alpha = 0.03f)
+        Color(0xFF7A4E2D).copy(alpha = 0.06f) // Subtle warm brown orbit lines
     }
     val lineColor by androidx.compose.animation.animateColorAsState(targetValue = targetLineColor, animationSpec = tween(500), label = "line")
 
