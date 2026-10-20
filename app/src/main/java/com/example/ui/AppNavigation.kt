@@ -117,11 +117,17 @@ fun AppNavigation(
                 SettingsScreen(
                     viewModel = viewModel, 
                     profile = profile, 
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToCodex = { navController.navigate("zodiac_codex") { launchSingleTop = true } }
                 ) 
             }
             composable("sync_settings") {
                 SyncSettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("zodiac_codex") {
+                ZodiacCodexScreen(
                     onBack = { navController.popBackStack() }
                 )
             }

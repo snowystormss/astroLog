@@ -1,0 +1,1582 @@
+package com.example.data
+
+object UsCitiesData {
+    // Encoded format for US incorporated municipalities:
+    // Name|StateCode|Latitude|Longitude|Priority
+    // Priority: 1-10 (10 = largest metropolitan hubs, 1 = smaller incorporated towns)
+    private val RAW_US_CITIES: String = """
+New York|NY|40.7128|-74.0060|10
+Buffalo|NY|42.8864|-78.8784|8
+Rochester|NY|43.1566|-77.6088|8
+Yonkers|NY|40.9312|-73.8987|7
+Syracuse|NY|43.0481|-76.1474|7
+Albany|NY|42.6526|-73.7562|8
+New Rochelle|NY|40.9115|-73.7824|6
+Mount Vernon|NY|40.9126|-73.8371|6
+Schenectady|NY|42.8142|-73.9396|6
+Utica|NY|43.1009|-75.2327|6
+White Plains|NY|41.0340|-73.7629|6
+Troy|NY|42.7284|-73.6918|6
+Niagara Falls|NY|43.0962|-79.0377|6
+Binghamton|NY|42.0987|-75.9180|5
+Ithaca|NY|42.4440|-76.5019|6
+Poughkeepsie|NY|41.7004|-73.9210|5
+Saratoga Springs|NY|43.0831|-73.7846|5
+Newburgh|NY|41.5034|-74.0104|5
+Elmira|NY|42.0898|-76.8077|5
+Kingston|NY|41.9270|-73.9974|5
+Auburn|NY|42.9334|-76.5666|5
+Watertown|NY|43.9748|-75.9108|5
+Glen Cove|NY|40.8623|-73.6335|5
+Long Beach|NY|40.5884|-73.6579|5
+Plattsburgh|NY|44.6995|-73.4529|5
+Oswego|NY|43.4553|-76.5105|5
+Batavia|NY|42.9981|-78.1875|5
+Geneva|NY|42.8681|-76.9778|5
+Peekskill|NY|41.2901|-73.9204|5
+Glens Falls|NY|43.3095|-73.6440|5
+Cortland|NY|42.6012|-76.1808|5
+Oneonta|NY|42.4529|-75.0638|4
+Olean|NY|42.0776|-78.4297|4
+Dunkirk|NY|42.4795|-79.3339|4
+Corning|NY|42.1429|-77.0547|5
+Fulton|NY|43.3223|-76.4172|4
+Oneida|NY|43.0862|-75.6516|4
+Amsterdam|NY|42.9376|-74.1907|4
+Beacon|NY|41.5048|-73.9696|5
+Canandaigua|NY|42.8878|-77.2800|5
+Rye|NY|40.9807|-73.6837|5
+Port Jervis|NY|41.3748|-74.6929|4
+Norwich|NY|42.5312|-75.5241|4
+Salamanca|NY|42.1581|-78.7147|4
+Little Falls|NY|43.0423|-74.8568|4
+
+Los Angeles|CA|34.0522|-118.2437|10
+San Diego|CA|32.7157|-117.1611|10
+San Jose|CA|37.3382|-121.8863|10
+San Francisco|CA|37.7749|-122.4194|10
+Fresno|CA|36.7468|-119.7726|8
+Sacramento|CA|38.5816|-121.4944|9
+Long Beach|CA|33.7701|-118.1937|8
+Oakland|CA|37.8044|-122.2712|8
+Bakersfield|CA|35.3733|-119.0187|8
+Anaheim|CA|33.8366|-117.9143|8
+Santa Ana|CA|33.7455|-117.8677|8
+Riverside|CA|33.9533|-117.3962|8
+Stockton|CA|37.9577|-121.2908|7
+Irvine|CA|33.6846|-117.8265|8
+Chula Vista|CA|32.6401|-117.0842|7
+Fremont|CA|37.5485|-121.9886|7
+San Bernardino|CA|34.1083|-117.2898|7
+Modesto|CA|37.6391|-120.9969|7
+Fontana|CA|34.0922|-117.4350|7
+Oxnard|CA|34.1975|-119.1771|7
+Moreno Valley|CA|33.9425|-117.2297|7
+Glendale|CA|34.1425|-118.2551|7
+Huntington Beach|CA|33.6595|-117.9988|7
+Salt Lake City|UT|40.7608|-111.8910|9
+West Valley City|UT|40.6916|-111.9602|7
+Provo|UT|40.2338|-111.6585|7
+West Jordan|UT|40.6097|-111.9391|7
+Orem|UT|40.2969|-111.6946|7
+Sandy|UT|40.5705|-111.8597|6
+Ogden|UT|41.2230|-111.9738|7
+St. George|UT|37.0965|-113.5684|7
+Layton|UT|41.0602|-111.9711|6
+South Jordan|UT|40.5622|-111.9297|6
+Lehi|UT|40.3894|-111.8508|6
+Logan|UT|41.7370|-111.8344|6
+Draper|UT|40.5247|-111.8638|6
+Bountiful|UT|40.8894|-111.8808|6
+Cedar City|UT|37.6775|-113.0619|6
+Park City|UT|40.6461|-111.4980|6
+Moab|UT|38.5733|-109.5498|5
+Vernal|UT|40.4555|-109.5287|5
+
+Chicago|IL|41.8781|-87.6298|10
+Aurora|IL|41.7606|-88.3201|8
+Naperville|IL|41.7508|-88.1535|8
+Joliet|IL|41.5250|-88.0817|7
+Rockford|IL|42.2711|-89.0940|7
+Springfield|IL|39.7817|-89.6501|8
+Peoria|IL|40.6936|-89.5890|7
+Elgin|IL|42.0354|-88.2826|7
+Waukegan|IL|42.3636|-87.8448|7
+Champaign|IL|40.1164|-88.2434|7
+Bloomington|IL|40.4842|-88.9937|7
+Decatur|IL|39.8403|-88.9549|6
+Evanston|IL|42.0451|-87.6877|7
+Arlington Heights|IL|42.0884|-87.9806|6
+Schaumburg|IL|42.0334|-88.0834|6
+Bolingbrook|IL|41.6986|-88.1295|6
+Palatine|IL|42.1103|-88.0342|6
+Skokie|IL|42.0324|-87.7416|6
+Des Plaines|IL|42.0334|-87.8834|6
+Urbana|IL|40.1106|-88.2073|6
+Carbondale|IL|37.7273|-89.2168|6
+Moline|IL|41.5067|-90.5151|6
+Belleville|IL|38.5201|-89.9840|6
+Quincy|IL|39.9356|-91.4099|6
+Galesburg|IL|40.9478|-90.3712|5
+Kankakee|IL|41.1200|-87.8611|5
+Danville|IL|40.1245|-87.6300|5
+Freeport|IL|42.2967|-89.6212|5
+
+Houston|TX|29.7604|-95.3698|10
+San Antonio|TX|29.4241|-98.4936|10
+Dallas|TX|32.7767|-96.7970|10
+Austin|TX|30.2672|-97.7431|10
+Fort Worth|TX|32.7555|-97.3308|9
+El Paso|TX|31.7619|-106.4850|9
+Arlington|TX|32.7357|-97.1081|8
+Corpus Christi|TX|27.8006|-97.3964|8
+Plano|TX|33.0198|-96.6989|8
+Lubbock|TX|33.5779|-101.8552|8
+Laredo|TX|27.5036|-99.5076|7
+Irving|TX|32.8140|-96.9489|7
+Garland|TX|32.9126|-96.6389|7
+Frisco|TX|33.1507|-96.8236|8
+McKinney|TX|33.1972|-96.6397|8
+Amarillo|TX|35.2220|-101.8313|7
+Grand Prairie|TX|32.7460|-96.9978|7
+Brownsville|TX|25.9017|-97.4975|7
+Killeen|TX|31.1171|-97.7278|7
+Pasadena|TX|29.6911|-95.2091|7
+Mesquite|TX|32.7668|-96.5992|7
+McAllen|TX|26.2034|-98.2300|7
+Waco|TX|31.5493|-97.1467|7
+Midland|TX|31.9973|-102.0779|7
+Denton|TX|33.2148|-97.1331|7
+Abilene|TX|32.4487|-99.7331|7
+Beaumont|TX|30.0802|-94.1266|7
+Odessa|TX|31.8457|-102.3676|7
+Round Rock|TX|30.5083|-97.6789|7
+Wichita Falls|TX|33.9137|-98.4934|7
+Tyler|TX|32.3513|-95.3011|7
+San Angelo|TX|31.4638|-100.4370|6
+College Station|TX|30.6280|-96.3344|7
+Bryan|TX|30.6744|-96.3700|6
+Galveston|TX|29.3013|-94.7977|6
+New Braunfels|TX|29.7030|-98.1245|6
+Conroe|TX|30.3119|-95.4560|6
+Victoria|TX|28.8053|-96.9884|6
+Harlingen|TX|26.1906|-97.6961|6
+Longview|TX|32.5007|-94.7405|6
+Nacogdoches|TX|31.6035|-94.6555|5
+Texarkana|TX|33.4251|-94.0477|6
+Del Rio|TX|29.3627|-100.8968|5
+Eagle Pass|TX|28.7091|-100.4995|5
+Lufkin|TX|31.3382|-94.7291|5
+Huntsville|TX|30.7235|-95.5508|6
+Alpine|TX|30.3585|-103.6613|4
+Fredericksburg|TX|30.2752|-98.8720|5
+Kerrville|TX|30.0474|-99.1403|5
+
+Jacksonville|FL|30.3322|-81.6557|9
+Miami|FL|25.7617|-80.1918|10
+Tampa|FL|27.9506|-82.4572|9
+Orlando|FL|28.5383|-81.3792|9
+St. Petersburg|FL|27.7676|-82.6403|8
+Hialeah|FL|25.8576|-80.2781|8
+Port St. Lucie|FL|27.2730|-80.3582|7
+Cape Coral|FL|26.5629|-81.9495|7
+Tallahassee|FL|30.4383|-84.2807|8
+Fort Lauderdale|FL|26.1224|-80.1373|8
+Pembroke Pines|FL|26.0078|-80.2963|7
+Hollywood|FL|26.0112|-80.1495|7
+Gainesville|FL|29.6516|-82.3248|7
+Miramar|FL|25.9860|-80.2323|7
+Coral Springs|FL|26.2712|-80.2706|7
+Clearwater|FL|27.9659|-82.8001|7
+Palm Bay|FL|28.0345|-80.5887|7
+West Palm Beach|FL|26.7153|-80.0534|8
+Lakeland|FL|28.0395|-81.9498|7
+Pompano Beach|FL|26.2379|-80.1248|7
+Miami Beach|FL|25.7907|-80.1300|7
+Boca Raton|FL|26.3683|-80.1289|7
+Delray Beach|FL|26.4615|-80.0728|6
+Daytona Beach|FL|29.2108|-81.0228|7
+Fort Myers|FL|26.6406|-81.8723|7
+Sarasota|FL|27.3364|-82.5307|7
+Pensacola|FL|30.4213|-87.2169|7
+Kissimmee|FL|28.2920|-81.4076|7
+Bradenton|FL|27.4989|-82.5748|7
+Ocala|FL|29.1872|-82.1401|6
+Key West|FL|24.5551|-81.7800|7
+Naples|FL|26.1420|-81.7948|7
+St. Augustine|FL|29.9012|-81.3124|7
+Panama City|FL|30.1588|-85.6602|6
+Winter Haven|FL|28.0222|-81.7329|6
+Titusville|FL|28.6122|-80.8076|6
+Melbourne|FL|28.0836|-80.6081|6
+
+Philadelphia|PA|39.9526|-75.1652|10
+Pittsburgh|PA|40.4406|-79.9959|9
+Allentown|PA|40.6084|-75.4902|8
+Reading|PA|40.3356|-75.9269|7
+Erie|PA|42.1292|-80.0851|7
+Scranton|PA|41.4090|-75.6624|7
+Bethlehem|PA|40.6259|-75.3705|7
+Lancaster|PA|40.0379|-76.3055|7
+Harrisburg|PA|40.2732|-76.8867|8
+York|PA|39.9626|-76.7277|6
+Wilkes-Barre|PA|41.2459|-75.8813|6
+Altoona|PA|40.5187|-78.3947|6
+State College|PA|40.7934|-77.8600|7
+Chester|PA|39.8496|-75.3557|6
+Easton|PA|40.6884|-75.2207|6
+Lebanon|PA|40.3409|-76.4255|5
+Hazleton|PA|40.9584|-75.9746|5
+New Castle|PA|41.0037|-80.3470|5
+Johnstown|PA|40.3267|-78.9220|5
+McKeesport|PA|40.3470|-79.8648|5
+Hermitage|PA|41.2334|-80.4487|5
+Williamsport|PA|41.2412|-77.0011|6
+Chambersburg|PA|39.9404|-77.6608|5
+Pottsville|PA|40.6856|-76.1955|5
+Oil City|PA|41.4342|-79.7064|4
+Gettysburg|PA|39.8309|-77.2311|6
+
+Columbus|OH|39.9612|-82.9988|9
+Cleveland|OH|41.4993|-81.6944|9
+Cincinnati|OH|39.1031|-84.5120|9
+Toledo|OH|41.6528|-83.5379|8
+Akron|OH|41.0814|-81.5190|8
+Dayton|OH|39.7589|-84.1916|8
+Parma|OH|41.4048|-81.7229|6
+Canton|OH|40.7989|-81.3784|7
+Youngstown|OH|41.0998|-80.6495|7
+Lorain|OH|41.4528|-82.1824|6
+Hamilton|OH|39.3995|-84.5613|6
+Springfield|OH|39.9242|-83.8088|7
+Kettering|OH|39.6895|-84.1688|6
+Elyria|OH|41.3684|-82.1076|6
+Lakewood|OH|41.4819|-81.7982|6
+Cuyahoga Falls|OH|41.1339|-81.4846|6
+Middletown|OH|39.5151|-84.3983|6
+Newark|OH|40.0581|-82.4013|6
+Mansfield|OH|40.7584|-82.5154|6
+Mentor|OH|41.6662|-81.3396|6
+Beavercreek|OH|39.7348|-84.0619|6
+Strongsville|OH|41.3145|-81.8357|6
+Findlay|OH|41.0442|-83.6499|6
+Lima|OH|40.7426|-84.1052|6
+Warren|OH|41.2378|-80.8184|6
+Wooster|OH|40.8051|-81.9351|5
+Athens|OH|39.3292|-82.1013|6
+Zanesville|OH|39.9403|-82.0132|5
+Chillicothe|OH|39.3331|-82.9824|5
+Portsmouth|OH|38.7317|-82.9977|5
+Sandusky|OH|41.4489|-82.7077|6
+Marietta|OH|39.4154|-81.4554|5
+
+Charlotte|NC|35.2271|-80.8431|9
+Raleigh|NC|35.7796|-78.6382|9
+Greensboro|NC|36.0726|-79.7920|8
+Durham|NC|35.9940|-78.8986|8
+Winston-Salem|NC|36.0999|-80.2442|8
+Fayetteville|NC|35.0527|-78.8784|7
+Cary|NC|35.7915|-78.7811|7
+Wilmington|NC|34.2257|-77.9447|8
+High Point|NC|35.9557|-80.0053|7
+Concord|NC|35.4088|-80.5795|7
+Asheville|NC|35.5951|-82.5515|8
+Gastonia|NC|35.2621|-81.1873|6
+Jacksonville|NC|34.7541|-77.4302|6
+Chapel Hill|NC|35.9132|-79.0558|7
+Burlington|NC|36.0957|-79.4378|6
+Rocky Mount|NC|35.9382|-77.7905|6
+Greenville|NC|35.6127|-77.3664|7
+Hickory|NC|35.7345|-81.3445|6
+New Bern|NC|35.1085|-77.0441|6
+Boone|NC|36.2168|-81.6746|6
+Outer Banks|NC|35.5585|-75.4665|6
+
+Atlanta|GA|33.7490|-84.3880|10
+Augusta|GA|33.4735|-81.9680|8
+Columbus|GA|32.4610|-84.9877|8
+Macon|GA|32.8407|-83.6324|7
+Savannah|GA|32.0809|-81.0912|8
+Athens|GA|33.9519|-83.3576|8
+Sandy Springs|GA|33.9304|-84.3733|7
+South Fulton|GA|33.6493|-84.5824|7
+Roswell|GA|34.0232|-84.3616|7
+Johns Creek|GA|34.0289|-84.1986|7
+Albany|GA|31.5785|-84.1557|6
+Warner Robins|GA|32.6130|-83.5999|6
+Alpharetta|GA|34.0754|-84.2941|7
+Marietta|GA|33.9526|-84.5499|7
+Valdosta|GA|30.8327|-83.2785|6
+Smyrna|GA|33.8839|-84.5144|6
+Dunwoody|GA|33.9462|-84.3346|6
+Rome|GA|34.2570|-85.1647|6
+Gainesville|GA|34.2979|-83.8241|6
+Peachtree City|GA|33.3968|-84.5958|6
+Brunswick|GA|31.1499|-81.4915|6
+Dalton|GA|34.7698|-84.9702|6
+Statesboro|GA|32.4488|-81.7832|6
+Thomasville|GA|30.8366|-83.9788|5
+Tifton|GA|31.4505|-83.5085|5
+
+Detroit|MI|42.3314|-83.0458|9
+Grand Rapids|MI|42.9634|-85.6681|8
+Warren|MI|42.5145|-83.0147|7
+Sterling Heights|MI|42.5803|-83.0302|7
+Ann Arbor|MI|42.2808|-83.7430|8
+Lansing|MI|42.7325|-84.5555|8
+Dearborn|MI|42.3223|-83.1763|7
+Livonia|MI|42.3684|-83.3527|7
+Troy|MI|42.5796|-83.1499|7
+Westland|MI|42.3242|-83.4002|6
+Flint|MI|43.0125|-83.6875|7
+Kalamazoo|MI|42.2917|-85.5872|7
+Traverse City|MI|44.7631|-85.6206|7
+Marquette|MI|46.5436|-87.3954|6
+Saginaw|MI|43.4194|-83.9508|6
+Muskegon|MI|43.2342|-86.2484|6
+Battle Creek|MI|42.3212|-85.1797|6
+Bay City|MI|43.5945|-83.8889|6
+Holland|MI|42.7875|-86.1089|6
+Port Huron|MI|42.9784|-82.4249|5
+Sault Ste. Marie|MI|46.4953|-84.3453|5
+Midland|MI|43.6156|-84.2472|6
+Alpena|MI|45.0617|-83.4327|5
+Escanaba|MI|45.7453|-87.0646|5
+Houghton|MI|47.1211|-88.5694|5
+
+Indianapolis|IN|39.7684|-86.1581|9
+Fort Wayne|IN|41.0793|-85.1394|8
+Evansville|IN|37.9716|-87.5711|8
+South Bend|IN|41.6764|-86.2520|8
+Carmel|IN|39.9784|-86.1180|7
+Fishers|IN|39.9568|-86.0134|7
+Bloomington|IN|39.1653|-86.5264|7
+Hammond|IN|41.5834|-87.5000|6
+Gary|IN|41.5934|-87.3464|6
+Lafayette|IN|40.4172|-86.8753|7
+Muncie|IN|40.1934|-85.3864|6
+Terre Haute|IN|39.4667|-87.4139|7
+Noblesville|IN|40.0456|-86.0086|6
+Kokomo|IN|40.4864|-86.1336|6
+Greenwood|IN|39.6137|-86.1067|6
+Elkhart|IN|41.6820|-85.9767|6
+Columbus|IN|39.2014|-85.9214|6
+Anderson|IN|40.1053|-85.6803|6
+Richmond|IN|39.8289|-84.8902|6
+Valparaiso|IN|41.4731|-87.0611|6
+Marion|IN|40.5584|-85.6591|5
+Vincennes|IN|38.6773|-87.5286|5
+Jeffersonville|IN|38.2776|-85.7372|6
+
+Seattle|WA|47.6062|-122.3321|10
+Spokane|WA|47.6588|-117.4260|8
+Tacoma|WA|47.2529|-122.4443|8
+Vancouver|WA|45.6387|-122.6615|8
+Bellevue|WA|47.6101|-122.2015|8
+Kent|WA|47.3809|-122.2348|7
+Everett|WA|47.9780|-122.2021|7
+Renton|WA|47.4829|-122.2171|7
+Spokane Valley|WA|47.6732|-117.2394|7
+Federal Way|WA|47.3223|-122.3126|7
+Yakima|WA|46.6021|-120.5059|7
+Bellingham|WA|48.7519|-122.4787|7
+Kennewick|WA|46.2114|-119.1372|7
+Auburn|WA|47.3073|-122.2285|7
+Pasco|WA|46.2396|-119.1006|7
+Marysville|WA|48.0518|-122.1771|6
+Lakewood|WA|47.1718|-122.5185|6
+Redmond|WA|47.6740|-122.1215|7
+Shoreline|WA|47.7557|-122.3415|6
+Richland|WA|46.2857|-119.2844|7
+Olympia|WA|47.0379|-122.9007|8
+Lacey|WA|47.0343|-122.8232|6
+Edmonds|WA|47.8107|-122.3774|6
+Bremerton|WA|47.5673|-122.6326|6
+Puyallup|WA|47.1854|-122.2929|6
+Longview|WA|46.1382|-122.9382|6
+Wenatchee|WA|47.4235|-120.3103|6
+Mount Vernon|WA|48.4212|-122.3357|6
+Walla Walla|WA|46.0646|-118.3430|6
+Pullman|WA|46.7313|-117.1796|6
+Port Angeles|WA|48.1181|-123.4307|6
+Aberdeen|WA|46.9754|-123.8157|5
+Ellensburg|WA|46.9965|-120.5478|6
+Moses Lake|WA|47.1301|-119.2781|5
+Centralia|WA|46.7162|-122.9543|5
+Anacortes|WA|48.5126|-122.6127|5
+Port Townsend|WA|48.1170|-122.7604|5
+
+Denver|CO|39.7392|-104.9903|10
+Colorado Springs|CO|38.8339|-104.8214|9
+Aurora|CO|39.7294|-104.8319|8
+Fort Collins|CO|40.5853|-105.0844|8
+Lakewood|CO|39.7047|-105.0814|7
+Thornton|CO|39.8680|-104.9719|7
+Arvada|CO|39.8028|-105.0875|7
+Westminster|CO|39.8367|-105.0372|7
+Pueblo|CO|38.2544|-104.6091|7
+Greeley|CO|40.4233|-104.7091|7
+Centennial|CO|39.5792|-104.8769|7
+Boulder|CO|40.0150|-105.2705|8
+Longmont|CO|40.1672|-105.1019|7
+Loveland|CO|40.3978|-105.0750|7
+Broomfield|CO|39.9205|-105.0867|7
+Grand Junction|CO|39.0639|-108.5506|7
+Castle Rock|CO|39.3722|-104.8561|7
+Commerce City|CO|39.8083|-104.9339|6
+Parker|CO|39.5186|-104.7614|6
+Littleton|CO|39.6133|-105.0166|6
+Brighton|CO|39.9853|-104.8205|6
+Durango|CO|37.2753|-107.8801|6
+Montrose|CO|38.4783|-107.8762|6
+Golden|CO|39.7555|-105.2211|6
+Aspen|CO|39.1911|-106.8175|6
+Vail|CO|39.6403|-106.3742|6
+Steamboat Springs|CO|40.4850|-106.8317|6
+Glenwood Springs|CO|39.5505|-107.3248|6
+Canon City|CO|38.4410|-105.2424|5
+Alamosa|CO|37.4694|-105.8700|5
+Sterling|CO|40.6255|-103.2077|5
+Cortez|CO|37.3489|-108.5859|5
+Trinidad|CO|37.1695|-104.5005|5
+Craig|CO|40.5153|-107.5464|5
+Telluride|CO|37.9375|-107.8123|5
+
+Boston|MA|42.3601|-71.0589|10
+Worcester|MA|42.2626|-71.8023|8
+Springfield|MA|42.1015|-72.5898|8
+Cambridge|MA|42.3736|-71.1097|8
+Lowell|MA|42.6334|-71.3162|7
+Brockton|MA|42.0834|-71.0184|7
+New Bedford|MA|41.6362|-70.9342|7
+Quincy|MA|42.2529|-71.0023|7
+Lynn|MA|42.4668|-70.9495|7
+Fall River|MA|41.7015|-71.1550|7
+Newton|MA|42.3370|-71.2092|7
+Lawrence|MA|42.7070|-71.1631|7
+Somerville|MA|42.3876|-71.0995|7
+Framingham|MA|42.2793|-71.4162|7
+Haverhill|MA|42.7762|-71.0773|6
+Malden|MA|42.4298|-71.0662|6
+Waltham|MA|42.3765|-71.2356|7
+Taunton|MA|41.9001|-71.0898|6
+Medford|MA|42.4184|-71.1062|6
+Chicopee|MA|42.1487|-72.6079|6
+Weymouth|MA|42.2215|-70.9395|6
+Revere|MA|42.4084|-71.0120|6
+Peabody|MA|42.5279|-70.9287|6
+Methuen|MA|42.7262|-71.1909|6
+Barnstable|MA|41.7003|-70.3002|7
+Pittsfield|MA|42.4501|-73.2454|6
+Attleboro|MA|41.9445|-71.2856|6
+Salem|MA|42.5195|-70.8967|7
+Westfield|MA|42.1251|-72.7495|6
+Leominster|MA|42.5251|-71.7598|6
+Fitchburg|MA|42.5834|-71.8023|6
+Holyoke|MA|42.2043|-72.6162|6
+Gloucester|MA|42.6159|-70.6620|6
+Northampton|MA|42.3251|-72.6412|6
+Greenfield|MA|42.5879|-72.5998|5
+Provincetown|MA|42.0584|-70.1786|6
+Nantucket|MA|41.2835|-70.0995|6
+Edgartown|MA|41.3896|-70.5134|6
+
+Phoenix|AZ|33.4484|-112.0740|10
+Tucson|AZ|32.2226|-110.9747|9
+Mesa|AZ|33.4152|-111.8315|8
+Chandler|AZ|33.3062|-111.8413|8
+Scottsdale|AZ|33.4942|-111.9261|8
+Glendale|AZ|33.5387|-112.1860|8
+Gilbert|AZ|33.3528|-111.7890|8
+Tempe|AZ|33.4255|-111.9400|8
+Peoria|AZ|33.5806|-112.2374|7
+Surprise|AZ|33.6292|-112.3679|7
+Yuma|AZ|32.6927|-114.6277|7
+Avondale|AZ|33.4356|-112.3496|7
+Flagstaff|AZ|35.1983|-111.6513|8
+Goodyear|AZ|33.4353|-112.3582|7
+Lake Havasu City|AZ|34.4839|-114.3224|6
+Buckeye|AZ|33.3703|-112.5838|7
+Casa Grande|AZ|32.8795|-111.7573|6
+Sierra Vista|AZ|31.5545|-110.3037|6
+Maricopa|AZ|33.0581|-112.0476|6
+Oro Valley|AZ|32.3909|-110.9665|6
+Prescott|AZ|34.5400|-112.4685|7
+Bullhead City|AZ|35.1478|-114.5683|6
+Prescott Valley|AZ|34.6100|-112.3157|6
+Apache Junction|AZ|33.4150|-111.5496|6
+El Mirage|AZ|33.6131|-112.3246|5
+Kingman|AZ|35.1894|-114.0530|6
+Sedona|AZ|34.8697|-111.7610|7
+Payson|AZ|34.2309|-111.3251|5
+Nogales|AZ|31.3404|-110.9343|6
+Show Low|AZ|34.2542|-110.0298|5
+Bisbee|AZ|31.4482|-109.9284|5
+Tombstone|AZ|31.7129|-110.0676|5
+Page|AZ|36.9147|-111.4558|5
+Winslow|AZ|35.0242|-110.6974|5
+Globe|AZ|33.3942|-110.7865|5
+Safford|AZ|32.8340|-109.7076|5
+
+Nashville|TN|36.1627|-86.7816|9
+Memphis|TN|35.1495|-90.0490|9
+Knoxville|TN|35.9606|-83.9207|8
+Chattanooga|TN|35.0456|-85.3097|8
+Clarksville|TN|36.5298|-87.3595|8
+Murfreesboro|TN|35.8456|-86.3903|8
+Franklin|TN|35.9251|-86.8689|7
+Johnson City|TN|36.3134|-82.3535|7
+Jackson|TN|35.6145|-88.8139|7
+Hendersonville|TN|36.3048|-86.6200|7
+Bartlett|TN|35.2045|-89.8737|6
+Kingsport|TN|36.5484|-82.5618|7
+Smyrna|TN|35.9828|-86.5186|6
+Collierville|TN|35.0420|-89.6645|6
+Cleveland|TN|35.1595|-84.8766|6
+Brentwood|TN|36.0331|-86.7828|6
+Germantown|TN|35.0868|-89.8101|6
+Columbia|TN|35.6151|-87.0353|6
+Spring Hill|TN|35.7512|-86.9300|6
+La Vergne|TN|36.0156|-86.5819|6
+Gallatin|TN|36.3884|-86.4467|6
+Cookeville|TN|36.1628|-85.5016|6
+Oak Ridge|TN|36.0104|-84.2696|6
+Morristown|TN|36.2137|-83.2949|6
+Bristol|TN|36.5951|-82.1887|6
+Maryville|TN|35.7565|-83.9705|6
+Lebanon|TN|36.2081|-86.3247|6
+Gatlinburg|TN|35.7143|-83.5102|6
+Pigeon Forge|TN|35.7884|-83.5543|6
+Greeneville|TN|36.1632|-82.8304|5
+Tullahoma|TN|35.3620|-86.2094|5
+McMinnville|TN|35.6842|-85.7725|5
+Dyersburg|TN|36.0345|-89.3856|5
+Crossville|TN|35.9487|-85.0269|5
+
+Minneapolis|MN|44.9778|-93.2650|9
+St. Paul|MN|44.9537|-93.0900|9
+Rochester|MN|44.0121|-92.4802|8
+Bloomington|MN|44.8408|-93.2983|7
+Duluth|MN|46.7867|-92.1005|7
+Brooklyn Park|MN|45.0941|-93.3563|7
+Plymouth|MN|45.0105|-93.4555|7
+Woodbury|MN|44.9239|-92.9594|7
+Lakeville|MN|44.6497|-93.2427|7
+St. Cloud|MN|45.5579|-94.1632|7
+Eagan|MN|44.8041|-93.1669|6
+Burnsville|MN|44.7677|-93.2777|6
+Coon Rapids|MN|45.1200|-93.2875|6
+Eden Prairie|MN|44.8547|-93.4708|6
+Mankato|MN|44.1636|-93.9994|6
+Moorhead|MN|46.8738|-96.7678|6
+Winona|MN|44.0497|-91.6393|6
+Bemidji|MN|47.4736|-94.8803|6
+Brainerd|MN|46.3580|-94.2008|6
+Fergus Falls|MN|46.2830|-96.0776|5
+Hibbing|MN|47.4272|-92.9377|5
+Willmar|MN|45.1219|-95.0433|5
+Alexandria|MN|45.8852|-95.3775|5
+Grand Rapids|MN|47.2372|-93.5302|5
+International Falls|MN|48.6011|-93.4110|5
+Ely|MN|47.9032|-91.8671|5
+
+Milwaukee|WI|43.0389|-87.9065|9
+Madison|WI|43.0731|-89.4012|9
+Green Bay|WI|44.5192|-88.0198|8
+Kenosha|WI|42.5847|-87.8212|7
+Racine|WI|42.7261|-87.7829|7
+Appleton|WI|44.2619|-88.4154|7
+Waukesha|WI|43.0117|-88.2315|7
+Eau Claire|WI|44.8113|-91.4985|7
+Oshkosh|WI|44.0247|-88.5426|7
+Janesville|WI|42.6828|-89.0187|7
+West Allis|WI|43.0167|-88.0070|6
+La Crosse|WI|43.8014|-91.2396|7
+Sheboygan|WI|43.7508|-87.7145|6
+Wauwatosa|WI|43.0495|-88.0076|6
+Fond du Lac|WI|43.7730|-88.4471|6
+Brookfield|WI|43.0606|-88.1065|6
+Wausau|WI|44.9591|-89.6301|6
+Beloit|WI|42.5083|-89.0318|6
+Manitowoc|WI|44.0886|-87.6576|6
+Stevens Point|WI|44.5236|-89.5746|6
+Superior|WI|46.7208|-92.1041|6
+Rhinelander|WI|45.6366|-89.4121|5
+Wisconsin Dells|WI|43.6275|-89.7707|6
+Sturgeon Bay|WI|44.8342|-87.3770|5
+Ashland|WI|46.5905|-90.8841|5
+Platteville|WI|42.7342|-90.4782|5
+
+Portland|OR|45.5152|-122.6784|9
+Salem|OR|44.9429|-123.0351|8
+Eugene|OR|44.0521|-123.0868|8
+Gresham|OR|45.4998|-122.4309|7
+Hillsboro|OR|45.5229|-122.9898|7
+Beaverton|OR|45.4871|-122.8037|7
+Bend|OR|44.0582|-121.3153|8
+Medford|OR|42.3265|-122.8756|7
+Springfield|OR|44.0462|-123.0220|7
+Corvallis|OR|44.5646|-123.2620|7
+Albany|OR|44.6365|-123.1059|6
+Tigard|OR|45.4312|-122.7712|6
+Lake Oswego|OR|45.4207|-122.6706|6
+Keizer|OR|44.9901|-123.0262|6
+Grants Pass|OR|42.4390|-123.3284|6
+Oregon City|OR|45.3573|-122.6068|6
+McMinnville|OR|45.2101|-123.1987|6
+Redmond|OR|44.2726|-121.1739|6
+Klamath Falls|OR|42.2249|-121.7817|6
+Woodburn|OR|45.1437|-122.8554|6
+Newberg|OR|45.3004|-122.9732|6
+Roseburg|OR|43.2165|-123.3417|6
+Ashland|OR|42.1946|-122.7095|6
+Pendleton|OR|45.6721|-118.7886|6
+Coos Bay|OR|43.3665|-124.2179|6
+The Dalles|OR|45.5946|-121.1787|6
+Astoria|OR|46.1879|-123.8313|6
+Hood River|OR|45.7054|-121.5215|6
+Baker City|OR|44.7749|-117.8344|5
+Ontario|OR|44.0265|-116.9629|5
+Cannon Beach|OR|45.8918|-123.9615|5
+Newport|OR|44.6368|-124.0535|6
+Florence|OR|43.9826|-124.1037|5
+
+Las Vegas|NV|36.1699|-115.1398|10
+Henderson|NV|36.0395|-114.9817|8
+Reno|NV|39.5296|-119.8138|8
+North Las Vegas|NV|36.1989|-115.1175|7
+Sparks|NV|39.5349|-119.7527|7
+Carson City|NV|39.1638|-119.7674|7
+Elko|NV|40.8324|-115.7631|6
+Mesquite|NV|36.8055|-114.0672|6
+Boulder City|NV|35.9786|-114.8325|6
+Fernley|NV|39.6080|-119.2518|5
+Fallon|NV|39.4735|-118.7774|5
+Winnemucca|NV|40.9730|-117.7357|5
+West Wendover|NV|40.7391|-114.0733|5
+Ely|NV|39.2474|-114.8886|5
+Yerington|NV|38.9874|-119.1627|4
+Caliente|NV|37.6152|-114.5122|4
+Wells|NV|41.1102|-114.9614|4
+Lovelock|NV|40.1780|-118.4732|4
+
+Kansas City|MO|39.0997|-94.5786|9
+St. Louis|MO|38.6270|-90.1994|9
+Springfield|MO|37.2090|-93.2923|8
+Columbia|MO|38.9517|-92.3341|8
+Independence|MO|39.0911|-94.4155|7
+Lee's Summit|MO|38.9108|-94.3822|7
+O'Fallon|MO|38.7909|-90.6998|7
+St. Joseph|MO|39.7674|-94.8467|7
+St. Charles|MO|38.7881|-90.4974|7
+Joplin|MO|37.0842|-94.5133|7
+Jefferson City|MO|38.5767|-92.1735|8
+Cape Girardeau|MO|37.3059|-89.5181|6
+Branson|MO|36.6437|-93.2185|7
+Hannibal|MO|39.7084|-91.3585|6
+Rolla|MO|37.9485|-91.7715|6
+Sedalia|MO|38.7045|-93.2283|6
+Kirksville|MO|40.1948|-92.5832|6
+Farmington|MO|37.7806|-90.4218|5
+Poplar Bluff|MO|36.7570|-90.3929|5
+Lebanon|MO|37.6806|-92.6641|5
+West Plains|MO|36.7281|-91.8524|5
+Moberly|MO|39.4184|-92.4382|5
+Maryville|MO|40.3461|-94.8725|5
+Kennett|MO|36.2362|-90.0557|5
+Chillicothe|MO|39.7953|-93.5524|5
+Mexico|MO|39.1698|-91.8829|5
+
+Louisville|KY|38.2527|-85.7585|9
+Lexington|KY|37.9887|-84.4777|9
+Bowling Green|KY|36.9685|-86.4808|8
+Owensboro|KY|37.7719|-87.1112|7
+Covington|KY|39.0837|-84.5086|7
+Richmond|KY|37.7479|-84.2947|7
+Georgetown|KY|38.2098|-84.5588|6
+Florence|KY|39.0039|-84.6269|6
+Hopkinsville|KY|36.8656|-87.4886|6
+Nicholasville|KY|37.8806|-84.5730|6
+Elizabethtown|KY|37.6939|-85.8591|6
+Henderson|KY|37.8361|-87.5900|6
+Frankfort|KY|38.2009|-84.8733|8
+Paducah|KY|37.0834|-88.6001|7
+Radcliff|KY|37.7848|-85.9389|6
+Ashland|KY|38.4784|-82.6379|6
+Madisonville|KY|37.3295|-87.4989|6
+Danville|KY|37.6456|-84.7722|6
+Somerset|KY|37.0918|-84.6044|6
+Berea|KY|37.5687|-84.2963|5
+Middlesboro|KY|36.6087|-83.7171|5
+Bardstown|KY|37.8092|-85.4669|6
+Maysville|KY|38.6492|-83.7444|5
+Corbin|KY|36.9490|-84.0969|5
+Pikeville|KY|37.4793|-82.5188|5
+Hazard|KY|37.2493|-83.1932|5
+Morehead|KY|38.1834|-83.4327|5
+Campbellsville|KY|37.3434|-85.3419|5
+
+New Orleans|LA|29.9511|-90.0715|9
+Baton Rouge|LA|30.4515|-91.1871|9
+Shreveport|LA|32.5252|-93.7502|8
+Lafayette|LA|30.2241|-92.0198|8
+Lake Charles|LA|30.2266|-93.2174|7
+Kenner|LA|30.0074|-90.2520|7
+Bossier City|LA|32.5160|-93.7321|7
+Monroe|LA|32.5093|-92.1193|7
+Alexandria|LA|31.3113|-92.4451|7
+Houma|LA|29.5958|-90.7195|6
+New Iberia|LA|30.0035|-91.8187|6
+Slidell|LA|30.2752|-89.7812|6
+Ruston|LA|32.5232|-92.6379|6
+Hammond|LA|30.5044|-90.4612|6
+Natchitoches|LA|31.7607|-93.0863|6
+Opelousas|LA|30.5335|-92.0815|5
+Thibodaux|LA|29.7958|-90.8229|5
+Morgan City|LA|29.6994|-91.2068|5
+Crowley|LA|30.2138|-92.3746|5
+Minden|LA|32.6154|-93.2868|5
+Bastrop|LA|32.7765|-91.8724|5
+DeRidder|LA|30.8466|-93.2893|5
+Bogalusa|LA|30.7910|-89.8487|5
+Abbeville|LA|29.9746|-92.1343|5
+Covington|LA|30.4755|-90.1009|6
+
+Birmingham|AL|33.5186|-86.8104|9
+Montgomery|AL|32.3792|-86.3077|9
+Huntsville|AL|34.7304|-86.5861|9
+Mobile|AL|30.6954|-88.0399|8
+Tuscaloosa|AL|33.2098|-87.5692|8
+Hoover|AL|33.4054|-86.8114|7
+Auburn|AL|32.6099|-85.4808|7
+Dothan|AL|31.2232|-85.3905|7
+Decatur|AL|34.6059|-86.9833|7
+Madison|AL|34.6993|-86.7483|7
+Florence|AL|34.7998|-87.6773|7
+Gadsden|AL|34.0143|-86.0066|6
+Vestavia Hills|AL|33.4487|-86.7878|6
+Prattville|AL|32.4640|-86.4597|6
+Phenix City|AL|32.4709|-85.0007|6
+Alabaster|AL|33.2443|-86.8164|6
+Opelika|AL|32.6454|-85.3783|6
+Enterprise|AL|31.3157|-85.8552|6
+Anniston|AL|33.6598|-85.8316|6
+Athens|AL|34.8029|-86.9717|6
+Cullman|AL|34.1748|-86.8436|6
+Selma|AL|32.4074|-87.0211|6
+Troy|AL|31.8088|-85.9699|6
+Albertville|AL|34.2676|-86.2130|5
+Fairhope|AL|30.5230|-87.9033|6
+Gulf Shores|AL|30.2460|-87.7008|6
+Talladega|AL|33.4359|-86.1058|5
+Alexander City|AL|32.9440|-85.9539|5
+Scottsboro|AL|34.6723|-86.0341|5
+Jasper|AL|33.8318|-87.2775|5
+Eufaula|AL|31.8913|-85.1455|5
+Fort Payne|AL|34.4443|-85.7197|5
+
+Little Rock|AR|34.7465|-92.2896|9
+Fort Smith|AR|35.3859|-94.3985|8
+Fayetteville|AR|36.0822|-94.1719|8
+Springdale|AR|36.1867|-94.1288|7
+Jonesboro|AR|35.8423|-90.7043|7
+Rogers|AR|36.3320|-94.1185|7
+Conway|AR|35.0887|-92.4421|7
+North Little Rock|AR|34.7695|-92.2671|7
+Bentonville|AR|36.3729|-94.2088|8
+Pine Bluff|AR|34.2284|-92.0032|7
+Hot Springs|AR|34.5037|-93.0552|7
+Benton|AR|34.5645|-92.5868|6
+Texarkana|AR|33.4418|-94.0377|6
+Sherwood|AR|34.8151|-92.2243|6
+Russellville|AR|35.2784|-93.1338|6
+Bella Vista|AR|36.4295|-94.2374|6
+Paragould|AR|36.0587|-90.4973|6
+Cabot|AR|34.9745|-92.0165|6
+Searcy|AR|35.2506|-91.7362|6
+Van Buren|AR|35.4362|-94.3483|6
+El Dorado|AR|33.2165|-92.6663|6
+Blytheville|AR|35.9273|-89.9190|5
+Harrison|AR|36.2295|-93.1077|6
+Mountain Home|AR|36.3353|-92.3846|6
+Batesville|AR|35.7698|-91.6407|5
+Camden|AR|33.5843|-92.8343|5
+Magnolia|AR|33.2671|-93.2393|5
+Hope|AR|33.6671|-93.5916|5
+Eureka Springs|AR|36.4012|-93.7377|6
+Helena-West Helena|AR|34.5298|-90.5898|5
+
+Wichita|KS|37.6872|-97.3301|9
+Overland Park|KS|38.9822|-94.6708|8
+Kansas City|KS|39.1155|-94.6268|8
+Olathe|KS|38.8814|-94.8191|8
+Topeka|KS|39.0473|-95.6752|8
+Lawrence|KS|38.9717|-95.2353|8
+Shawnee|KS|39.0228|-94.7152|7
+Lenexa|KS|38.9536|-94.7336|7
+Manhattan|KS|39.1836|-96.5717|7
+Salina|KS|38.8403|-97.6114|7
+Hutchinson|KS|38.0608|-97.9298|6
+Leavenworth|KS|39.3111|-94.9225|6
+Leawood|KS|38.9161|-94.6152|6
+Dodge City|KS|37.7528|-100.0171|7
+Garden City|KS|37.9717|-100.8727|6
+Emporia|KS|38.4039|-96.1817|6
+Junction City|KS|39.0286|-96.8314|6
+Derby|KS|37.5458|-97.2689|6
+Prairie Village|KS|38.9917|-94.6336|6
+Hays|KS|38.8794|-99.3268|6
+Pittsburg|KS|37.4109|-94.7049|6
+Liberal|KS|37.0431|-100.9210|6
+Newton|KS|38.0450|-97.3456|6
+Great Bend|KS|38.3645|-98.7648|6
+McPherson|KS|38.3708|-97.6642|5
+Ottawa|KS|38.6158|-95.2678|5
+Winfield|KS|37.2403|-96.9959|5
+Arkansas City|KS|37.0617|-97.0384|5
+Atchison|KS|39.5631|-95.1216|5
+Coffeyville|KS|37.0373|-95.6164|5
+Chanute|KS|37.6792|-95.4589|5
+Fort Scott|KS|37.8398|-94.7066|5
+Abilene|KS|38.9172|-97.2139|5
+Colby|KS|39.3958|-101.0524|5
+
+Des Moines|IA|41.5868|-93.6250|9
+Cedar Rapids|IA|41.9779|-91.6656|8
+Davenport|IA|41.5236|-90.5776|8
+Sioux City|IA|42.4999|-96.4003|8
+Iowa City|IA|41.6611|-91.5302|8
+Waterloo|IA|42.4928|-92.3426|7
+Ames|IA|42.0308|-93.6319|7
+West Des Moines|IA|41.5772|-93.7438|7
+Ankeny|IA|41.7297|-93.6058|7
+Council Bluffs|IA|41.2619|-95.8608|7
+Dubuque|IA|42.5006|-90.6646|7
+Urbandale|IA|41.6269|-93.7122|6
+Cedar Falls|IA|42.5349|-92.4453|6
+Marion|IA|42.0344|-91.5977|6
+Bettendorf|IA|41.5245|-90.5154|6
+Mason City|IA|43.1536|-93.2010|6
+Marshalltown|IA|42.0494|-92.9080|6
+Clinton|IA|41.8445|-90.1887|6
+Burlington|IA|40.8075|-91.1129|6
+Ottumwa|IA|41.0200|-92.4113|6
+Fort Dodge|IA|42.4975|-94.1680|6
+Muscatine|IA|41.4245|-91.0432|6
+Coralville|IA|41.6764|-91.5804|6
+Johnston|IA|41.6728|-93.6977|6
+Waukee|IA|41.6117|-93.8647|6
+Newton|IA|41.6994|-93.0474|5
+Indianola|IA|41.3580|-93.5574|5
+Boone|IA|42.0597|-93.8802|5
+Oskaloosa|IA|41.2964|-92.6444|5
+Spencer|IA|43.1414|-95.1444|5
+Keokuk|IA|40.3973|-91.3849|5
+Pella|IA|41.4080|-92.9163|5
+Decorah|IA|43.3033|-91.7857|5
+Storm Lake|IA|42.6411|-95.2097|5
+
+Omaha|NE|41.2565|-95.9345|9
+Lincoln|NE|40.8136|-96.7026|9
+Bellevue|NE|41.1394|-95.8953|7
+Grand Island|NE|40.9264|-98.3420|7
+Kearney|NE|40.6995|-99.0815|7
+Fremont|NE|41.4333|-96.4981|6
+Hastings|NE|40.5842|-98.3898|6
+Norfolk|NE|42.0283|-97.4170|6
+Columbus|NE|41.4297|-97.3592|6
+North Platte|NE|41.1239|-100.7654|6
+Papillion|NE|41.1544|-96.0422|6
+La Vista|NE|41.1839|-96.0242|6
+Scottsbluff|NE|41.8666|-103.6672|6
+South Sioux City|NE|42.4739|-96.4136|6
+Beatrice|NE|40.2681|-96.7470|6
+Lexington|NE|40.7808|-99.7415|5
+Gering|NE|41.8269|-103.6605|5
+Alliance|NE|42.0997|-102.8716|5
+Blair|NE|41.5444|-96.1342|5
+York|NE|40.8681|-97.5920|5
+McCook|NE|40.2019|-100.6254|5
+Nebraska City|NE|40.6767|-95.8592|5
+Sidney|NE|41.1428|-102.9780|5
+Chadron|NE|42.8294|-102.9999|5
+Valentine|NE|42.8728|-100.5507|5
+
+Boise|ID|43.6150|-116.2023|9
+Meridian|ID|43.6121|-116.3915|8
+Nampa|ID|43.5407|-116.5635|8
+Idaho Falls|ID|43.4917|-112.0340|8
+Caldwell|ID|43.6629|-116.6874|7
+Pocatello|ID|42.8713|-112.4455|7
+Coeur d'Alene|ID|47.6777|-116.7804|8
+Twin Falls|ID|42.5630|-114.4608|7
+Post Falls|ID|47.7121|-116.9482|7
+Lewiston|ID|46.4166|-117.0177|7
+Rexburg|ID|43.8260|-111.7897|7
+Moscow|ID|46.7324|-117.0002|7
+Eagle|ID|43.6954|-116.3535|6
+Kuna|ID|43.4918|-116.4201|6
+Ammon|ID|43.4696|-111.9675|6
+Chubbuck|ID|42.9208|-112.4661|6
+Hayden|ID|47.7560|-116.7863|6
+Mountain Home|ID|43.1330|-115.6912|6
+Blackfoot|ID|43.1905|-112.3450|6
+Garden City|ID|43.6521|-116.2396|6
+Jerome|ID|42.7241|-114.5187|5
+Burley|ID|42.5357|-113.7928|5
+Sandpoint|ID|48.2766|-116.5532|6
+Hailey|ID|43.5196|-114.3153|6
+Sun Valley|ID|43.6963|-114.3512|6
+McCall|ID|44.9110|-116.0988|6
+Salmon|ID|45.1758|-113.8959|5
+
+Billings|MT|45.7833|-108.5007|9
+Missoula|MT|46.8721|-113.9940|8
+Great Falls|MT|47.5053|-111.3008|8
+Bozeman|MT|45.6770|-111.0429|8
+Butte|MT|46.0038|-112.5347|7
+Helena|MT|46.5891|-112.0391|8
+Kalispell|MT|48.1958|-114.3129|7
+Havre|MT|48.5500|-109.6841|6
+Anaconda|MT|46.1285|-112.9423|6
+Miles City|MT|46.4083|-105.8406|6
+Belgrade|MT|45.7760|-111.1766|6
+Livingston|MT|45.6624|-110.5610|6
+Laurel|MT|45.6708|-108.7715|6
+Whitefish|MT|48.4111|-114.3376|6
+Lewistown|MT|47.0625|-109.4282|5
+Sidney|MT|47.7164|-104.1563|5
+Glendive|MT|47.1053|-104.7125|5
+Columbia Falls|MT|48.3725|-114.1818|5
+Polson|MT|47.6936|-114.1632|5
+Hamilton|MT|46.2471|-114.1548|5
+Dillon|MT|45.2163|-112.6378|5
+Hardin|MT|45.7311|-107.6120|5
+Glasgow|MT|48.1969|-106.6364|5
+Deer Lodge|MT|46.3958|-112.7303|5
+Cut Bank|MT|48.6331|-112.3262|5
+Red Lodge|MT|45.1858|-109.2468|5
+West Yellowstone|MT|44.6621|-111.1041|6
+
+Cheyenne|WY|41.1400|-104.8202|9
+Casper|WY|42.8666|-106.3131|8
+Gillette|WY|44.2911|-105.5022|7
+Laramie|WY|41.3114|-105.5911|8
+Rock Springs|WY|41.5875|-109.2029|7
+Sheridan|WY|44.7972|-106.9562|7
+Green River|WY|41.5286|-109.4662|6
+Evanston|WY|41.2683|-110.9632|6
+Riverton|WY|43.0247|-108.3801|6
+Jackson|WY|43.4799|-110.7624|8
+Cody|WY|44.5263|-109.0565|7
+Rawlins|WY|41.7911|-107.2387|6
+Lander|WY|42.8330|-108.7307|6
+Powell|WY|44.7541|-108.7576|5
+Douglas|WY|42.7597|-105.3822|5
+Torrington|WY|42.0625|-104.1844|5
+Buffalo|WY|44.3483|-106.6989|5
+Worland|WY|44.0169|-107.9554|5
+Newcastle|WY|43.8544|-104.2052|5
+Wheatland|WY|42.0544|-104.9528|5
+Thermopolis|WY|43.6461|-108.2120|5
+Kemmerer|WY|41.7919|-110.5360|5
+Pinedale|WY|42.8672|-109.8596|5
+Dubois|WY|43.5336|-109.6332|5
+
+Fargo|ND|46.8772|-96.7898|9
+Bismarck|ND|46.8083|-100.7837|9
+Grand Forks|ND|47.9253|-97.0329|8
+Minot|ND|48.2330|-101.2923|8
+West Fargo|ND|46.8744|-96.9004|7
+Williston|ND|48.1470|-103.6180|7
+Dickinson|ND|46.8792|-102.7896|7
+Mandan|ND|46.8267|-100.8896|7
+Jamestown|ND|46.9105|-98.7071|6
+Wahpeton|ND|46.2652|-96.6059|6
+Devils Lake|ND|48.1128|-98.8651|6
+Valley City|ND|46.9233|-98.0032|5
+Watford City|ND|47.8025|-103.2732|5
+Grafton|ND|48.4194|-97.4106|5
+Beulah|ND|47.4047|-101.7779|5
+Rugby|ND|48.3689|-99.9962|5
+Horace|ND|46.7589|-96.9034|5
+
+Sioux Falls|SD|43.5460|-96.7313|9
+Rapid City|SD|44.0805|-103.2310|8
+Aberdeen|SD|45.4647|-98.4865|7
+Brookings|SD|44.3114|-96.7984|7
+Watertown|SD|44.8994|-97.1151|7
+Mitchell|SD|43.7094|-98.0298|7
+Yankton|SD|42.8711|-97.3973|6
+Pierre|SD|44.3683|-100.3510|8
+Huron|SD|44.3628|-98.2140|6
+Spearfish|SD|44.4908|-103.8594|6
+Vermillion|SD|42.7794|-96.9292|6
+Brandon|SD|43.5947|-96.5723|6
+Box Elder|SD|44.1244|-103.0718|5
+Madison|SD|44.0061|-97.1126|5
+Sturgis|SD|44.4097|-103.5091|7
+Deadwood|SD|44.3767|-103.7296|6
+Custer|SD|43.7664|-103.5988|5
+Mobridge|SD|45.5375|-100.4357|5
+Hot Springs|SD|43.4316|-103.4744|5
+
+Albuquerque|NM|35.0844|-106.6504|9
+Las Cruces|NM|32.3199|-106.7637|8
+Rio Rancho|NM|35.2328|-106.6630|8
+Santa Fe|NM|35.6870|-105.9378|9
+Roswell|NM|33.3943|-104.5230|7
+Farmington|NM|36.7281|-108.2187|7
+Clovis|NM|34.4048|-103.2052|6
+Hobbs|NM|32.7026|-103.1360|6
+Alamogordo|NM|32.8995|-105.9603|6
+Carlsbad|NM|32.4207|-104.2288|6
+Gallup|NM|35.5281|-108.7426|6
+Los Alamos|NM|35.8880|-106.3070|7
+Deming|NM|32.2687|-107.7586|5
+Sunland Park|NM|31.7965|-106.5800|5
+Las Vegas|NM|35.5939|-105.2239|6
+Portales|NM|34.1862|-103.3344|5
+Artesia|NM|32.8423|-104.3986|5
+Silver City|NM|32.7701|-108.2803|6
+Espanola|NM|35.9911|-106.0806|5
+Socorro|NM|34.0584|-106.8914|5
+Taos|NM|36.4072|-105.5734|7
+Ruidoso|NM|33.3317|-105.6730|6
+Truth or Consequences|NM|33.1284|-107.2528|5
+Raton|NM|36.9034|-104.4392|5
+Tucumcari|NM|35.1717|-103.7250|5
+
+Oklahoma City|OK|35.4676|-97.5164|9
+Tulsa|OK|36.1540|-95.9928|9
+Norman|OK|35.2226|-97.4395|8
+Broken Arrow|OK|36.0526|-95.7908|8
+Edmond|OK|35.6560|-97.4781|8
+Lawton|OK|34.6036|-98.3959|7
+Moore|OK|35.3395|-97.4867|7
+Midwest City|OK|35.4495|-97.3967|7
+Enid|OK|36.3956|-97.8784|7
+Stillwater|OK|36.1156|-97.0584|7
+Muskogee|OK|35.7479|-95.3697|7
+Bartlesville|OK|36.7473|-95.9808|6
+Owasso|OK|36.2695|-95.8547|6
+Shawnee|OK|35.3273|-96.9253|6
+Yukon|OK|35.5067|-97.7625|6
+Bixby|OK|35.9420|-95.8833|6
+Ardmore|OK|34.1743|-97.1436|6
+Ponca City|OK|36.7070|-97.0856|6
+Duncan|OK|34.5023|-97.9578|6
+Del City|OK|35.4420|-97.4417|6
+Sapulpa|OK|35.9987|-96.1142|6
+Bethany|OK|35.5053|-97.6325|5
+Mustang|OK|35.3909|-97.7231|5
+Sand Springs|OK|36.1398|-96.1089|5
+Claremore|OK|36.3126|-95.6161|6
+Altus|OK|34.6381|-99.3339|5
+McAlester|OK|34.9334|-95.7697|6
+Tahlequah|OK|35.9154|-94.9700|6
+El Reno|OK|35.5323|-97.9550|5
+Durant|OK|33.9937|-96.3708|6
+Ada|OK|34.7745|-96.6783|6
+Chickasha|OK|35.0526|-97.9364|5
+Miami|OK|36.8745|-94.8775|5
+Woodward|OK|36.4337|-99.3904|5
+Weatherford|OK|35.5267|-98.7070|5
+Guthrie|OK|35.8789|-97.4253|5
+Guymon|OK|36.6828|-101.4816|5
+
+Jackson|MS|32.2988|-90.1848|9
+Gulfport|MS|30.3674|-89.0928|8
+Southaven|MS|34.9919|-90.0023|7
+Biloxi|MS|30.3960|-88.8853|7
+Hattiesburg|MS|31.3271|-89.2903|7
+Olive Branch|MS|34.9618|-89.8295|7
+Tupelo|MS|34.2576|-88.7034|7
+Meridian|MS|32.3643|-88.7037|7
+Greenville|MS|33.3997|-91.0612|6
+Clinton|MS|32.3413|-90.3218|6
+Pearl|MS|32.2743|-90.1337|6
+Horn Lake|MS|34.9573|-90.0354|6
+Madison|MS|32.4565|-90.1154|6
+Starkville|MS|33.4504|-88.8184|7
+Ridgeland|MS|32.4285|-90.1312|6
+Columbus|MS|33.4957|-88.4273|6
+Vicksburg|MS|32.3526|-90.8779|7
+Pascagoula|MS|30.3658|-88.5561|6
+Oxford|MS|34.3665|-89.5192|7
+Brandon|MS|32.2732|-89.9859|6
+Laurel|MS|31.6941|-89.1306|6
+Ocean Springs|MS|30.4113|-88.8278|6
+Natchez|MS|31.5604|-91.4031|6
+Greenwood|MS|33.5162|-90.1795|5
+Corinth|MS|34.9343|-88.5223|5
+Picayune|MS|30.5255|-89.6795|5
+Clarksdale|MS|34.2001|-90.5709|5
+Brookhaven|MS|31.5791|-90.4407|5
+Cleveland|MS|33.7440|-90.7248|5
+McComb|MS|31.2438|-90.4532|5
+Grenada|MS|33.7832|-89.8084|5
+Canton|MS|32.6129|-90.0368|5
+Bay St. Louis|MS|30.3088|-89.3300|5
+
+Charleston|SC|32.7765|-79.9311|9
+Columbia|SC|34.0007|-81.0348|9
+North Charleston|SC|32.8546|-79.9748|8
+Mount Pleasant|SC|32.7941|-79.8626|8
+Rock Hill|SC|34.9249|-81.0259|7
+Greenville|SC|34.8526|-82.3940|8
+Summerville|SC|33.0185|-80.1756|7
+Goose Creek|SC|32.9810|-80.0315|6
+Sumter|SC|33.9204|-80.3415|7
+Florence|SC|34.1954|-79.7626|7
+Spartanburg|SC|34.9496|-81.9320|7
+Hilton Head Island|SC|32.2163|-80.7526|7
+Myrtle Beach|SC|33.6891|-78.8867|8
+Greer|SC|34.9387|-82.2271|6
+Aiken|SC|33.5604|-81.7196|7
+Anderson|SC|34.5034|-82.6501|7
+Fort Mill|SC|35.0074|-80.9451|6
+Hanahan|SC|32.9238|-79.9984|6
+Conway|SC|33.8360|-79.0564|6
+Clemson|SC|34.6834|-82.8374|7
+Beaufort|SC|32.4316|-80.6698|7
+Orangeburg|SC|33.4918|-80.8557|6
+Greenwood|SC|34.1954|-82.1618|6
+North Myrtle Beach|SC|33.8160|-78.6800|6
+Gaffney|SC|35.0718|-81.6498|5
+Georgetown|SC|33.3768|-79.2945|6
+Newberry|SC|34.2746|-81.6187|5
+Camden|SC|34.2465|-80.6068|5
+Lancaster|SC|34.7204|-80.7709|5
+Hartsville|SC|34.3740|-80.0734|5
+
+Virginia Beach|VA|36.8529|-75.9780|9
+Chesapeake|VA|36.7682|-76.2875|8
+Norfolk|VA|36.8508|-76.2859|8
+Richmond|VA|37.5407|-77.4360|9
+Newport News|VA|37.0871|-76.4730|8
+Alexandria|VA|38.8048|-77.0469|8
+Hampton|VA|37.0299|-76.3452|7
+Roanoke|VA|37.2710|-79.9414|8
+Portsmouth|VA|36.8354|-76.2983|7
+Suffolk|VA|36.7282|-76.5836|7
+Lynchburg|VA|37.4138|-79.1422|7
+Harrisonburg|VA|38.4496|-78.8689|7
+Charlottesville|VA|38.0293|-78.4767|8
+Danville|VA|36.5860|-79.3950|6
+Manassas|VA|38.7509|-77.4753|7
+Petersburg|VA|37.2279|-77.4019|6
+Fredericksburg|VA|38.3032|-77.4605|7
+Winchester|VA|39.1857|-78.1633|7
+Salem|VA|37.2935|-80.0548|6
+Staunton|VA|38.1496|-79.0717|6
+Fairfax|VA|38.8462|-77.3064|7
+Hopewell|VA|37.3043|-77.2872|5
+Waynesboro|VA|38.0685|-78.8895|6
+Bristol|VA|36.5951|-82.1887|6
+Colonial Heights|VA|37.2621|-77.4053|5
+Falls Church|VA|38.8823|-77.1711|6
+Williamsburg|VA|37.2707|-76.7075|7
+Martinsville|VA|36.6915|-79.8725|5
+Poquoson|VA|37.1224|-76.3458|5
+Franklin|VA|36.6777|-76.9222|5
+Lexington|VA|37.7840|-79.4428|6
+Buena Vista|VA|37.7340|-79.3556|5
+Norton|VA|36.9329|-82.6310|4
+
+Charleston|WV|38.3498|-81.6326|9
+Huntington|WV|38.4192|-82.4452|8
+Morgantown|WV|39.6295|-79.9559|8
+Parkersburg|WV|39.2667|-81.5615|7
+Wheeling|WV|40.0640|-80.7209|7
+Weirton|WV|40.4184|-80.5898|6
+Fairmont|WV|39.4851|-80.1439|6
+Martinsburg|WV|39.4562|-77.9639|6
+Beckley|WV|37.7782|-81.1882|6
+Clarksburg|WV|39.2806|-80.3445|6
+South Charleston|WV|38.3687|-81.7001|5
+Vienna|WV|39.3267|-81.5487|5
+St. Albans|WV|38.3848|-81.8365|5
+Bluefield|WV|37.2698|-81.2223|5
+Bridgeport|WV|39.2845|-80.2562|5
+Moundsville|WV|39.9204|-80.7431|5
+Elkins|WV|38.9259|-79.8467|5
+Oak Hill|WV|37.9723|-81.1487|5
+Buckhannon|WV|38.9937|-80.2318|5
+Princeton|WV|37.3687|-81.1023|5
+Lewisburg|WV|37.8023|-80.4456|5
+New Martinsville|WV|39.6437|-80.8629|5
+Summersville|WV|38.2818|-80.8532|5
+Keyser|WV|39.4412|-78.9739|5
+Shepherdstown|WV|39.4301|-77.8042|5
+Harpers Ferry|WV|39.3254|-77.7389|6
+
+Portland|ME|43.6591|-70.2568|9
+Lewiston|ME|44.1004|-70.2148|7
+Bangor|ME|44.8016|-68.7712|8
+South Portland|ME|43.6415|-70.2409|7
+Auburn|ME|44.0979|-70.2312|7
+Biddeford|ME|43.4926|-70.4534|6
+Sanford|ME|43.4395|-70.7742|6
+Saco|ME|43.5009|-70.4428|6
+Westbrook|ME|43.6770|-70.3712|6
+Augusta|ME|44.3106|-69.7795|8
+Waterville|ME|44.5520|-69.6317|6
+Presque Isle|ME|46.6811|-68.0159|6
+Brewer|ME|44.7967|-68.7584|5
+Bath|ME|43.9106|-69.8206|6
+Caribou|ME|46.8606|-67.9970|5
+Old Town|ME|44.9362|-68.6467|5
+Ellsworth|ME|44.5434|-68.4195|6
+Rockland|ME|44.1037|-69.1089|6
+Belfast|ME|44.4259|-69.0064|5
+Gardiner|ME|44.2301|-69.7753|5
+Calais|ME|45.1856|-67.2789|5
+Houlton|ME|46.1262|-67.8403|5
+Bar Harbor|ME|44.3876|-68.2039|6
+Kennebunkport|ME|43.3615|-70.4767|6
+Camden|ME|44.2098|-69.0648|5
+
+Manchester|NH|42.9956|-71.4548|9
+Nashua|NH|42.7654|-71.4676|8
+Concord|NH|43.2081|-71.5376|8
+Derry|NH|42.8806|-71.2778|7
+Dover|NH|43.1979|-70.8737|7
+Rochester|NH|43.3045|-70.9756|7
+Salem|NH|42.7934|-71.2009|6
+Merrimack|NH|42.8681|-71.4939|6
+Hudson|NH|42.7645|-71.4398|6
+Londonderry|NH|42.8651|-71.3739|6
+Keene|NH|42.9337|-72.2781|7
+Portsmouth|NH|43.0718|-70.7626|8
+Laconia|NH|43.5279|-71.4704|6
+Claremont|NH|43.3767|-72.3468|6
+Lebanon|NH|43.6423|-72.2518|6
+Somersworth|NH|43.2618|-70.8653|5
+Berlin|NH|44.4687|-71.1851|5
+Franklin|NH|43.4442|-71.6467|5
+Hanover|NH|43.7022|-72.2896|7
+Exeter|NH|42.9815|-70.9478|6
+North Conway|NH|44.0537|-71.1284|6
+Littleton|NH|44.3067|-71.7687|5
+Plymouth|NH|43.7570|-71.6887|5
+Peterborough|NH|42.8718|-71.9515|5
+
+Burlington|VT|44.4759|-73.2121|9
+South Burlington|VT|44.4670|-73.1709|7
+Rutland|VT|43.6106|-72.9726|7
+Barre|VT|44.1970|-72.5020|6
+Montpelier|VT|44.2601|-72.5754|8
+Winooski|VT|44.4903|-73.1865|6
+St. Albans|VT|44.8109|-73.0832|6
+Newport|VT|44.9362|-72.2051|5
+Vergennes|VT|44.1673|-73.2546|5
+Brattleboro|VT|42.8509|-72.5579|6
+Bennington|VT|42.8781|-73.1968|6
+Middlebury|VT|44.0153|-73.1673|6
+St. Johnsbury|VT|44.4192|-72.0151|5
+Stowe|VT|44.4654|-72.6874|6
+Woodstock|VT|43.6245|-72.5184|6
+Manchester|VT|43.1637|-73.0723|6
+Killington|VT|43.6648|-72.7931|5
+Waterbury|VT|44.3378|-72.7562|5
+
+Providence|RI|41.8240|-71.4128|9
+Cranston|RI|41.7798|-71.4376|8
+Warwick|RI|41.7001|-71.4162|8
+Pawtucket|RI|41.8787|-71.3826|7
+East Providence|RI|41.8137|-71.3701|7
+Woonsocket|RI|42.0029|-71.5148|7
+Newport|RI|41.4901|-71.3128|8
+Central Falls|RI|41.8907|-71.3912|6
+Westerly|RI|41.3776|-71.8273|6
+Narragansett|RI|41.4501|-71.4495|6
+Bristol|RI|41.6770|-71.2662|6
+Kingston|RI|41.4801|-71.5234|6
+Block Island|RI|41.1718|-71.5778|6
+Tiverton|RI|41.6268|-71.2148|5
+
+Bridgeport|CT|41.1792|-73.1894|8
+New Haven|CT|41.3083|-72.9279|8
+Stamford|CT|41.0534|-73.5387|8
+Hartford|CT|41.7658|-72.6734|9
+Waterbury|CT|41.5582|-73.0515|7
+Norwalk|CT|41.1176|-73.4079|7
+Danbury|CT|41.3948|-73.4540|7
+New Britain|CT|41.6612|-72.7795|7
+West Hartford|CT|41.7621|-72.7420|7
+Greenwich|CT|41.0262|-73.6282|7
+Hamden|CT|41.3839|-72.9026|7
+Meriden|CT|41.5382|-72.8070|6
+Bristol|CT|41.6718|-72.9493|6
+Manchester|CT|41.7759|-72.5215|6
+West Haven|CT|41.2707|-72.9470|6
+Stratford|CT|41.1845|-73.1332|6
+Milford|CT|41.2223|-73.0571|6
+Middletown|CT|41.5623|-72.6506|6
+Norwich|CT|41.5243|-72.0759|6
+Shelton|CT|41.3165|-73.0932|6
+Torrington|CT|41.8007|-73.1212|6
+New London|CT|41.3557|-72.0995|6
+Ansonia|CT|41.3462|-73.0790|5
+Derby|CT|41.3207|-73.0784|5
+Groton|CT|41.3501|-72.0784|6
+Mystic|CT|41.3543|-71.9665|6
+
+Newark|NJ|40.7357|-74.1724|9
+Jersey City|NJ|40.7178|-74.0431|9
+Paterson|NJ|40.9168|-74.1718|8
+Elizabeth|NJ|40.6640|-74.2107|8
+Edison|NJ|40.5187|-74.4121|8
+Woodbridge|NJ|40.5576|-74.2846|7
+Lakewood|NJ|40.0979|-74.2177|7
+Toms River|NJ|39.9537|-74.1979|7
+Hamilton|NJ|40.2237|-74.7007|7
+Trenton|NJ|40.2206|-74.7597|8
+Clifton|NJ|40.8584|-74.1638|7
+Camden|NJ|39.9259|-75.1196|7
+Passaic|NJ|40.8568|-74.1285|7
+Union City|NJ|40.7795|-74.0246|7
+Bayonne|NJ|40.6687|-74.1143|7
+East Orange|NJ|40.7673|-74.2049|7
+Vineland|NJ|39.4864|-75.0257|6
+New Brunswick|NJ|40.4862|-74.4518|7
+Hoboken|NJ|40.7440|-74.0324|7
+Perth Amboy|NJ|40.5068|-74.2654|6
+Plainfield|NJ|40.6337|-74.4074|6
+Sayreville|NJ|40.4593|-74.3607|6
+Hackensack|NJ|40.8859|-74.0435|7
+Atlantic City|NJ|39.3643|-74.4229|8
+Morristown|NJ|40.7968|-74.4815|7
+Princeton|NJ|40.3573|-74.6672|8
+Cape May|NJ|38.9351|-74.9060|7
+Asbury Park|NJ|40.2204|-74.0121|7
+Red Bank|NJ|40.3471|-74.0643|6
+Bridgewater|NJ|40.5934|-74.6268|6
+Montclair|NJ|40.8259|-74.2090|6
+
+Wilmington|DE|39.7447|-75.5484|9
+Dover|DE|39.1582|-75.5244|8
+Newark|DE|39.6837|-75.7497|8
+Middletown|DE|39.4496|-75.7163|7
+Smyrna|DE|39.2998|-75.6047|6
+Milford|DE|38.9129|-75.4277|6
+Seaford|DE|38.6412|-75.6110|6
+Georgetown|DE|38.6907|-75.3877|6
+Elsmere|DE|39.7401|-75.5977|5
+New Castle|DE|39.6621|-75.5663|6
+Rehoboth Beach|DE|38.7168|-75.0760|7
+Lewes|DE|38.7746|-75.1393|6
+Bethany Beach|DE|38.5398|-75.0552|6
+Harrington|DE|38.9246|-75.5744|5
+Laurel|DE|38.5562|-75.5710|5
+
+Baltimore|MD|39.2904|-76.6122|9
+Frederick|MD|39.4143|-77.4105|8
+Rockville|MD|39.0840|-77.1528|8
+Gaithersburg|MD|39.1434|-77.2014|8
+Bowie|MD|39.0068|-76.7791|7
+Hagerstown|MD|39.6418|-77.7200|7
+Annapolis|MD|38.9784|-76.4922|8
+College Park|MD|38.9897|-76.9378|7
+Salisbury|MD|38.3607|-75.5994|7
+Laurel|MD|39.0993|-76.8483|7
+Greenbelt|MD|39.0046|-76.8755|6
+Cumberland|MD|39.6529|-78.7625|6
+Westminster|MD|39.5754|-76.9958|6
+Hyattsville|MD|38.9559|-76.9458|6
+Takoma Park|MD|38.9779|-77.0075|6
+Easton|MD|38.7743|-76.0763|6
+Cambridge|MD|38.5632|-76.0788|5
+Ocean City|MD|38.3365|-75.0849|7
+Havre de Grace|MD|39.5493|-76.0916|6
+Frostburg|MD|39.6581|-78.9284|5
+Chestertown|MD|39.2090|-76.0666|5
+Bel Air|MD|39.5359|-76.3483|6
+Bethesda|MD|38.9847|-77.0947|8
+Silver Spring|MD|38.9907|-77.0261|8
+
+Honolulu|HI|21.3069|-157.8583|9
+Hilo|HI|19.7297|-155.0900|8
+Kailua|HI|21.4022|-157.7394|7
+Kapolei|HI|21.3358|-158.0800|7
+Kaneohe|HI|21.4181|-157.8036|7
+Waipahu|HI|21.3867|-158.0092|7
+Pearl City|HI|21.3972|-157.9733|7
+Kailua-Kona|HI|19.6400|-155.9969|7
+Kahului|HI|20.8893|-156.4729|7
+Kihei|HI|20.7644|-156.4450|6
+Lihue|HI|21.9811|-159.3711|7
+Lahaina|HI|20.8783|-156.6825|6
+Wailuku|HI|20.8911|-156.5047|6
+Kapaa|HI|22.0886|-159.3369|6
+Waimea|HI|20.0203|-155.6669|6
+Hana|HI|20.7575|-155.9883|5
+
+Anchorage|AK|61.2181|-149.9003|9
+Fairbanks|AK|64.8378|-147.7164|8
+Juneau|AK|58.3019|-134.4197|8
+Wasilla|AK|61.5809|-149.4411|7
+Sitka|AK|57.0531|-135.3300|7
+Ketchikan|AK|55.3422|-131.6461|7
+Kenai|AK|60.5544|-151.2583|6
+Palmer|AK|61.5997|-149.1128|6
+Bethel|AK|60.7922|-161.7558|6
+Kodiak|AK|57.7900|-152.4072|6
+Homer|AK|59.6425|-151.5483|6
+Soldotna|AK|60.4878|-151.0583|6
+Nome|AK|64.5011|-165.4064|6
+Utqiagvik|AK|71.2906|-156.7886|6
+Kotzebue|AK|66.8983|-162.5978|5
+Seward|AK|60.1042|-149.4422|6
+Petersburg|AK|56.8125|-132.9556|5
+Valdez|AK|61.1308|-146.3483|6
+Skagway|AK|59.4583|-135.3139|5
+Cordova|AK|60.5428|-145.7575|5
+Wrangell|AK|56.4708|-132.3800|5
+Dillingham|AK|59.0397|-158.4575|5
+North Pole|AK|64.7511|-147.3494|5
+
+Washington|DC|38.9072|-77.0369|10
+San Juan|PR|18.4655|-66.1057|8
+Bayamon|PR|18.3985|-66.1557|7
+Carolina|PR|18.3808|-65.9574|7
+Ponce|PR|18.0111|-66.6141|7
+Caguas|PR|18.2341|-66.0485|7
+Mayaguez|PR|18.2011|-67.1453|7
+Arecibo|PR|18.4725|-66.7157|6
+Aguadilla|PR|18.4275|-67.1541|6
+Guaynabo|PR|18.3594|-66.1124|6
+Humacao|PR|18.1497|-65.8274|6
+Fajardo|PR|18.3258|-65.6525|6
+"""
+
+    // Major global metropolitan hubs
+    // Format: Name|Region|Country|Latitude|Longitude|Priority
+    private val RAW_WORLD_CITIES: String = """
+London|England|United Kingdom|51.5074|-0.1278|10
+Paris|Île-de-France|France|48.8566|2.3522|10
+Tokyo|Kanto|Japan|35.6762|139.6503|10
+Toronto|Ontario|Canada|43.6532|-79.3832|9
+Vancouver|British Columbia|Canada|49.2827|-123.1207|9
+Montreal|Quebec|Canada|45.5017|-73.5673|9
+Calgary|Alberta|Canada|51.0447|-114.0719|8
+Ottawa|Ontario|Canada|45.4215|-75.6972|8
+Sydney|New South Wales|Australia| -33.8688|151.2093|9
+Melbourne|Victoria|Australia|-37.8136|144.9631|9
+Brisbane|Queensland|Australia|-27.4698|153.0251|8
+Perth|Western Australia|Australia|-31.9505|115.8605|8
+Auckland|Auckland|New Zealand|-36.8485|174.7633|8
+Berlin|Berlin|Germany|52.5200|13.4050|9
+Munich|Bavaria|Germany|48.1351|11.5820|8
+Frankfurt|Hesse|Germany|50.1109|8.6821|8
+Madrid|Community of Madrid|Spain|40.4168|-3.7038|9
+Barcelona|Catalonia|Spain|41.3851|2.1734|9
+Rome|Lazio|Italy|41.9028|12.4964|9
+Milan|Lombardy|Italy|45.4642|9.1900|9
+Amsterdam|North Holland|Netherlands|52.3676|4.9041|9
+Brussels|Brussels|Belgium|50.8503|4.3517|8
+Vienna|Vienna|Austria|48.2082|16.3738|8
+Zurich|Zurich|Switzerland|47.3769|8.5417|8
+Geneva|Geneva|Switzerland|46.2044|6.1432|8
+Dublin|Leinster|Ireland|53.3498|-6.2603|8
+Stockholm|Stockholm|Sweden|59.3293|18.0686|8
+Oslo|Oslo|Norway|59.9139|10.7522|8
+Copenhagen|Hovedstaden|Denmark|55.6761|12.5683|8
+Helsinki|Uusimaa|Finland|60.1699|24.9384|8
+Athens|Attica|Greece|37.9838|23.7275|8
+Lisbon|Lisbon|Portugal|38.7223|-9.1393|8
+Warsaw|Masovian|Poland|52.2297|21.0122|8
+Prague|Prague|Czech Republic|50.0755|14.4378|8
+Budapest|Central Hungary|Hungary|47.4979|19.0402|8
+Mexico City|CDMX|Mexico|19.4326|-99.1332|9
+Guadalajara|Jalisco|Mexico|20.6597|-103.3496|8
+Monterrey|Nuevo León|Mexico|25.6866|-100.3161|8
+Sao Paulo|Sao Paulo|Brazil|-23.5505|-46.6333|9
+Rio de Janeiro|Rio de Janeiro|Brazil|-22.9068|-43.1729|9
+Buenos Aires|Buenos Aires|Argentina|-34.6037|-58.3816|9
+Santiago|Santiago Metropolitan|Chile|-33.4489|-70.6693|8
+Bogota|Bogota D.C.|Colombia|4.7110|-74.0721|8
+Lima|Lima|Peru| -12.0464|-77.0428|8
+Singapore|Central Region|Singapore|1.3521|103.8198|9
+Hong Kong|Hong Kong|Hong Kong|22.3193|114.1694|9
+Seoul|Seoul National Capital|South Korea|37.5665|126.9780|9
+Taipei|Northern Taiwan|Taiwan|25.0330|121.5654|8
+Bangkok|Bangkok|Thailand|13.7563|100.5018|8
+Dubai|Dubai|United Arab Emirates|25.2048|55.2708|9
+Mumbai|Maharashtra|India|19.0760|72.8777|9
+Delhi|National Capital Region|India|28.6139|77.2090|9
+Bengaluru|Karnataka|India|12.9716|77.5946|8
+Beijing|Beijing|China|39.9042|116.4074|9
+Shanghai|Shanghai|China|31.2304|121.4737|9
+Johannesburg|Gauteng|South Africa|-26.2041|28.0473|8
+Cape Town|Western Cape|South Africa|-33.9249|18.4241|8
+Cairo|Cairo|Egypt|30.0444|31.2357|8
+Tel Aviv|Tel Aviv|Israel|32.0853|34.7818|8
+Istanbul|Marmara|Turkey|41.0082|28.9784|9
+Manila|Metro Manila|Philippines|14.5995|120.9842|8
+"""
+
+    val ALL_CITIES: List<CityLocation> by lazy {
+        val list = mutableListOf<CityLocation>()
+
+        // Parse US Cities
+        RAW_US_CITIES.trim().lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                val parts = trimmed.split("|")
+                if (parts.size >= 4) {
+                    val name = parts[0].trim()
+                    val stateCode = parts[1].trim()
+                    val lat = parts[2].trim().toDoubleOrNull() ?: 0.0
+                    val lon = parts[3].trim().toDoubleOrNull() ?: 0.0
+                    val priority = if (parts.size >= 5) parts[4].trim().toIntOrNull() ?: 5 else 5
+                    val stateName = UsStateHelper.STATE_CODE_TO_NAME[stateCode] ?: stateCode
+                    val country = if (stateCode == "PR") "Puerto Rico" else "United States"
+
+                    list.add(
+                        CityLocation(
+                            name = name,
+                            region = stateName,
+                            country = country,
+                            latitude = lat,
+                            longitude = lon,
+                            stateCode = stateCode,
+                            priority = priority
+                        )
+                    )
+                }
+            }
+        }
+
+        // Parse Global Cities
+        RAW_WORLD_CITIES.trim().lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                val parts = trimmed.split("|")
+                if (parts.size >= 5) {
+                    val name = parts[0].trim()
+                    val region = parts[1].trim()
+                    val country = parts[2].trim()
+                    val lat = parts[3].trim().toDoubleOrNull() ?: 0.0
+                    val lon = parts[4].trim().toDoubleOrNull() ?: 0.0
+                    val priority = if (parts.size >= 6) parts[5].trim().toIntOrNull() ?: 5 else 5
+
+                    list.add(
+                        CityLocation(
+                            name = name,
+                            region = region,
+                            country = country,
+                            latitude = lat,
+                            longitude = lon,
+                            stateCode = "",
+                            priority = priority
+                        )
+                    )
+                }
+            }
+        }
+
+        list
+    }
+}

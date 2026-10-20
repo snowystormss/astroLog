@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import com.example.data.*
+import kotlinx.coroutines.flow.combine
+
 class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
 
     private val _isDarkTheme = MutableStateFlow(true)
@@ -40,8 +43,104 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
     private val _lunarEventAlert = MutableStateFlow<String?>(null)
     val lunarEventAlert: StateFlow<String?> = _lunarEventAlert
 
+    private val _elementalBalance = MutableStateFlow<ElementalBalance?>(null)
+    val elementalBalance: StateFlow<ElementalBalance?> = _elementalBalance
+
+    private val _houseCusps = MutableStateFlow<List<HouseCusp>>(emptyList())
+    val houseCusps: StateFlow<List<HouseCusp>> = _houseCusps
+
+    private val _detailedPlanets = MutableStateFlow<List<DetailedPlanetInfo>>(emptyList())
+    val detailedPlanets: StateFlow<List<DetailedPlanetInfo>> = _detailedPlanets
+
+    private val _dispositorResult = MutableStateFlow<DispositorResult?>(null)
+    val dispositorResult: StateFlow<DispositorResult?> = _dispositorResult
+
+    private val _chartAngles = MutableStateFlow<AnglesResult?>(null)
+    val chartAngles: StateFlow<AnglesResult?> = _chartAngles
+
+    private val _aspectDetails = MutableStateFlow<List<AspectDetail>>(emptyList())
+    val aspectDetails: StateFlow<List<AspectDetail>> = _aspectDetails
+
     init {
         checkLunarEvents()
+        viewModelScope.launch {
+            combine(repository.userProfile, repository.userSettings) { prof, settings ->
+                Pair(prof, settings?.houseSystem ?: "WHOLE_SIGN")
+            }.collect { (prof, sys) ->
+                if (prof != null) {
+                    recalculateAstrologicalData(prof, sys)
+                }
+            }
+        }
+    }
+
+    fun setHouseSystem(system: String) {
+        val current = userSettings.value ?: com.example.data.UserSettings()
+        updateUserSettings(current.copy(houseSystem = system))
+    }
+
+    fun recalculateAstrologicalData(profile: UserProfile, houseSystem: String = "WHOLE_SIGN") {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val dateParts = profile.birthDate.split("/")
+            val month = dateParts.getOrNull(0)?.toIntOrNull() ?: 1
+            val day = dateParts.getOrNull(1)?.toIntOrNull() ?: 1
+            val year = dateParts.getOrNull(2)?.toIntOrNull() ?: 2000
+
+            val hour = if (!profile.birthTime.startsWith("Unknown")) {
+                val timeParts = profile.birthTime.split(":")
+                val h = timeParts.getOrNull(0)?.toDoubleOrNull() ?: 12.0
+                val m = timeParts.getOrNull(1)?.toDoubleOrNull() ?: 0.0
+                h + (m / 60.0)
+            } else {
+                12.0
+            }
+
+            val planets = PlanetCalculator.calculatePlanets(year, month, day, hour, profile.latitude, profile.longitude)
+            val angles = PlanetCalculator.calculateAngles(year, month, day, hour, profile.latitude, profile.longitude)
+            _chartAngles.value = angles
+
+            val cusps = PlanetCalculator.calculateHouseCusps(
+                system = houseSystem,
+                ascLon = angles.ascendant.longitude,
+                mcLon = angles.midheaven.longitude,
+                latitude = profile.latitude,
+                longitude = profile.longitude,
+                year = year,
+                month = month,
+                day = day,
+                hour = hour
+            )
+            _houseCusps.value = cusps
+
+            val elemBalance = PlanetCalculator.calculateElementalBalance(planets)
+            _elementalBalance.value = elemBalance
+
+            val dispositors = PlanetCalculator.calculateDispositors(planets)
+            _dispositorResult.value = dispositors
+
+            val aspects = PlanetCalculator.calculateAspectsDetailed(planets)
+            _aspectDetails.value = aspects
+
+            val detailedList = mutableListOf<DetailedPlanetInfo>()
+            val trackedNames = listOf("Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "South Node", "Chiron", "Lilith", "Part of Fortune")
+            for (name in trackedNames) {
+                val pos = planets[name] ?: continue
+                val houseNum = PlanetCalculator.getPlanetHouse(pos.longitude, cusps, houseSystem)
+                val dignity = PlanetCalculator.calculateDignity(name, pos.sign)
+                detailedList.add(
+                    DetailedPlanetInfo(
+                        name = name,
+                        sign = pos.sign,
+                        degree = pos.degree,
+                        minute = pos.minute,
+                        longitude = pos.longitude,
+                        house = houseNum,
+                        dignity = dignity
+                    )
+                )
+            }
+            _detailedPlanets.value = detailedList
+        }
     }
 
     private fun checkLunarEvents() {
@@ -99,12 +198,23 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
 
     fun resolveLocation(query: String, onResolved: (String, Double, Double) -> Unit, onError: () -> Unit) {
         viewModelScope.launch {
-            try {
                 if (query.isBlank()) {
                     onError()
                     return@launch
                 }
-                val apiKey = BuildConfig.GEMINI_API_KEY
+
+                // 1. Instant offline resolution from 50-state database
+                val bestOfflineMatch = com.example.data.CitySearchService.findBestMatch(query)
+                if (bestOfflineMatch != null) {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onResolved(bestOfflineMatch.formatted, bestOfflineMatch.latitude, bestOfflineMatch.longitude)
+                    }
+                    return@launch
+                }
+
+                // 2. Online geocoding fallback for unincorporated rural areas or unlisted hamlets
+                try {
+                    val apiKey = BuildConfig.GEMINI_API_KEY
                 if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
                     throw IllegalStateException("API Key is missing")
                 }

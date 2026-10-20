@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.MilitaryTimePicker
 import com.example.ui.components.DatePickerRow
+import com.example.ui.components.CityAutocompleteField
 import com.example.data.UserProfile
 
 import com.example.ui.components.CosmicBackground
@@ -109,57 +110,59 @@ fun OnboardingScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = locationQuery,
-                onValueChange = { 
+            CityAutocompleteField(
+                query = locationQuery,
+                onQueryChange = {
                     locationQuery = it
                     latitude = 0.0
                     longitude = 0.0
                 },
-                singleLine = true,
-                maxLines = 1,
-                label = { Text("Birth City, State, Country", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-            
-            if (latitude != 0.0 || longitude != 0.0) {
-                Text(
-                    text = "Coordinates: ${"%.2f".format(latitude)}, ${"%.2f".format(longitude)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, top = 4.dp)
-                )
-            } else {
-                TextButton(
-                    onClick = {
-                        isResolvingLoc = true
-                        viewModel.resolveLocation(locationQuery, { formatted, lat, lon ->
-                            locationQuery = formatted
-                            latitude = lat
-                            longitude = lon
-                            isResolvingLoc = false
-                        }, {
-                            isResolvingLoc = false
-                        })
-                    },
-                    enabled = locationQuery.isNotBlank() && !isResolvingLoc
-                ) {
-                    Text(if (isResolvingLoc) "Locating..." else "Find Coordinates")
+                latitude = latitude,
+                longitude = longitude,
+                onLocationSelected = { city ->
+                    locationQuery = city.formatted
+                    latitude = city.latitude
+                    longitude = city.longitude
+                },
+                isResolvingOnline = isResolvingLoc,
+                onTriggerOnlineSearch = {
+                    isResolvingLoc = true
+                    viewModel.resolveLocation(locationQuery, { formatted, lat, lon ->
+                        locationQuery = formatted
+                        latitude = lat
+                        longitude = lon
+                        isResolvingLoc = false
+                    }, {
+                        isResolvingLoc = false
+                    })
                 }
-            }
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
-                    if (isFormValid) {
+                    if (isFormValid && !isResolvingLoc) {
                         val birthDate = "$birthMonth/$birthDay/$birthYear"
                         val finalTime = if (unknownTime) "Unknown (12:00 PM)" else "$birthHour:$birthMinute"
-                        val location = locationQuery
-                        onProfileCreated(name, birthDate, finalTime, location, latitude, longitude)
+                        
+                        if (latitude != 0.0 || longitude != 0.0) {
+                            onProfileCreated(name, birthDate, finalTime, locationQuery, latitude, longitude)
+                        } else {
+                            // Automatic background resolution so user never gets an incorrect 0,0 chart
+                            isResolvingLoc = true
+                            viewModel.resolveLocation(locationQuery, { resolvedAddr, lat, lon ->
+                                isResolvingLoc = false
+                                onProfileCreated(name, birthDate, finalTime, resolvedAddr, lat, lon)
+                            }, {
+                                isResolvingLoc = false
+                                // Fallback with current query
+                                onProfileCreated(name, birthDate, finalTime, locationQuery, latitude, longitude)
+                            })
+                        }
                     }
                 },
-                enabled = isFormValid,
+                enabled = isFormValid && !isResolvingLoc,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -169,7 +172,17 @@ fun OnboardingScreen(
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
-                Text("Reveal My Chart", fontSize = 16.sp, color = if (isFormValid) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                if (isResolvingLoc) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Aligning Celestial Coordinates...", fontSize = 15.sp, color = Color.White)
+                } else {
+                    Text("Reveal My Chart", fontSize = 16.sp, color = if (isFormValid) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

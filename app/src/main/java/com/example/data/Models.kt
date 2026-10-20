@@ -87,5 +87,68 @@ data class UserSettings(
     val notifyPersonalTransits: Boolean = true,
     val enableAudioFeedback: Boolean = false,
     val dailyReminderEnabled: Boolean = false,
-    val dailyReminderTime: String = "Morning" // "Morning" or "Night"
+    val dailyReminderTime: String = "Morning", // "Morning" or "Night"
+    val houseSystem: String = "WHOLE_SIGN" // "WHOLE_SIGN" or "PLACIDUS"
 )
+
+data class HouseCusp(
+    val houseNumber: Int,
+    val sign: String,
+    val degree: Int,
+    val minute: Int,
+    val longitude: Double
+)
+
+data class ElementalBalance(
+    val fire: Int,
+    val earth: Int,
+    val air: Int,
+    val water: Int,
+    val cardinal: Int,
+    val fixed: Int,
+    val mutable: Int,
+    val masculine: Int,
+    val feminine: Int,
+    val summary: String
+)
+
+enum class DignityType {
+    DOMICILE,
+    EXALTATION,
+    DETRIMENT,
+    FALL,
+    PEREGRINE
+}
+
+data class DetailedPlanetInfo(
+    val name: String,
+    val sign: String,
+    val degree: Int,
+    val minute: Int,
+    val longitude: Double,
+    val house: Int,
+    val dignity: DignityType,
+    val isRetrograde: Boolean = false
+)
+
+data class AspectDetail(
+    val planet1: String,
+    val planet2: String,
+    val aspectName: String,
+    val orb: Double,
+    val isApplying: Boolean
+)
+
+data class DispositorResult(
+    val dispositors: Map<String, String>,
+    val mutualReceptions: List<Pair<String, String>>,
+    val finalDispositor: String?
+)
+
+data class AnglesResult(
+    val ascendant: com.example.ui.PlanetCalculator.PlanetPosition,
+    val midheaven: com.example.ui.PlanetCalculator.PlanetPosition,
+    val descendant: com.example.ui.PlanetCalculator.PlanetPosition,
+    val imumCoeli: com.example.ui.PlanetCalculator.PlanetPosition
+)
+

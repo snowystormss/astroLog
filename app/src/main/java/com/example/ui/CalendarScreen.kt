@@ -67,12 +67,34 @@ fun CalendarScreen(viewModel: MainViewModel, profile: UserProfile) {
     
     // We will calculate the events for this month once
     val monthlyEvents = remember(displayCalendar, profile) {
-        val y = profile.birthDate.split("-").getOrNull(0)?.toIntOrNull() ?: 2000
-        val m = profile.birthDate.split("-").getOrNull(1)?.toIntOrNull() ?: 1
-        val d = profile.birthDate.split("-").getOrNull(2)?.toIntOrNull() ?: 1
-        val natalPlanets = PlanetCalculator.calculatePlanets(y, m, d, latitude = profile.latitude, longitude = profile.longitude)
+        val (y, m, d) = if (profile.birthDate.contains("/")) {
+            val parts = profile.birthDate.split("/")
+            Triple(
+                parts.getOrNull(2)?.toIntOrNull() ?: 2000,
+                parts.getOrNull(0)?.toIntOrNull() ?: 1,
+                parts.getOrNull(1)?.toIntOrNull() ?: 1
+            )
+        } else {
+            val parts = profile.birthDate.split("-")
+            Triple(
+                parts.getOrNull(0)?.toIntOrNull() ?: 2000,
+                parts.getOrNull(1)?.toIntOrNull() ?: 1,
+                parts.getOrNull(2)?.toIntOrNull() ?: 1
+            )
+        }
+
+        val hour = if (!profile.birthTime.startsWith("Unknown")) {
+            val timeParts = profile.birthTime.split(":")
+            val h = timeParts.getOrNull(0)?.toDoubleOrNull() ?: 12.0
+            val min = timeParts.getOrNull(1)?.toDoubleOrNull() ?: 0.0
+            h + (min / 60.0)
+        } else {
+            12.0
+        }
+
+        val natalPlanets = PlanetCalculator.calculatePlanets(y, m, d, hour, latitude = profile.latitude, longitude = profile.longitude)
         
-        // We can just calculate 31 days starting from the 1st of the month
+        // We calculate days starting from the 1st of the month
         val cal = displayCalendar.clone() as Calendar
         cal.set(Calendar.DAY_OF_MONTH, 1)
         PlanetCalculator.calculateUpcomingEvents(

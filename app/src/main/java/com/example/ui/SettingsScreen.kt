@@ -1,7 +1,9 @@
 package com.example.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,12 +12,14 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.MilitaryTimePicker
 import com.example.ui.components.DatePickerRow
+import com.example.ui.components.CityAutocompleteField
 import com.example.data.UserProfile
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,7 +27,8 @@ import com.example.data.UserProfile
 fun SettingsScreen(
     viewModel: MainViewModel,
     profile: UserProfile,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onNavigateToCodex: () -> Unit = {}
 ) {
     var name by rememberSaveable { mutableStateOf(profile.name) }
     
@@ -50,6 +55,8 @@ fun SettingsScreen(
     val isFormValid = name.isNotBlank() && birthMonth.isNotBlank() && birthDay.isNotBlank() && birthYear.length == 4 && locationQuery.isNotBlank() && (unknownTime || (birthHour.isNotBlank() && birthMinute.isNotBlank()))
 
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val userSettings by viewModel.userSettings.collectAsStateWithLifecycle()
+    val settings = userSettings ?: com.example.data.UserSettings()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     com.example.ui.components.CosmicBackground {
@@ -77,6 +84,65 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+        // Zodiac Codex Card
+        item {
+            Card(
+                onClick = onNavigateToCodex,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Text(
+                            text = "📜",
+                            fontSize = 24.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Zodiac Codex & Guide",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Explore the 12 signs, decans, planets, houses & geometric aspects.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Open Codex",
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .rotate(180f),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // Theme Toggle
         item {
             Column(modifier = Modifier) {
                 Row(
@@ -113,10 +179,120 @@ fun SettingsScreen(
             }
         }
 
+        // Astrological House System Section
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Astrological House System",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Choose how the 12 astrological houses are divided for natal charts and placements.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val currentSystem = settings.houseSystem.ifBlank { "WHOLE_SIGN" }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Whole Sign Button
+                    val isWholeSign = currentSystem.uppercase() == "WHOLE_SIGN"
+                    Card(
+                        onClick = { viewModel.setHouseSystem("WHOLE_SIGN") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isWholeSign) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (isWholeSign) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.Start
+                        ) {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = isWholeSign,
+                                    onClick = { viewModel.setHouseSystem("WHOLE_SIGN") }
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Whole Sign",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isWholeSign) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Classical Hellenistic method. Every house spans an entire 30° zodiac sign from the Ascendant.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isWholeSign) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+
+                    // Placidus Button
+                    val isPlacidus = currentSystem.uppercase() == "PLACIDUS"
+                    Card(
+                        onClick = { viewModel.setHouseSystem("PLACIDUS") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isPlacidus) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            if (isPlacidus) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = androidx.compose.ui.Alignment.Start
+                        ) {
+                            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = isPlacidus,
+                                    onClick = { viewModel.setHouseSystem("PLACIDUS") }
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Placidus",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isPlacidus) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Modern quadrant semi-arc trisection. Unequal houses reflecting diurnal & nocturnal motion.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isPlacidus) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+
         item {
             Column(modifier = Modifier) {
-            val userSettings by viewModel.userSettings.collectAsStateWithLifecycle()
-            val settings = userSettings ?: com.example.data.UserSettings()
 
             Text(
                 text = "Transit Notifications",
@@ -357,45 +533,34 @@ fun SettingsScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = locationQuery,
-                onValueChange = { 
+            CityAutocompleteField(
+                query = locationQuery,
+                onQueryChange = {
                     locationQuery = it
                     latitude = 0.0
                     longitude = 0.0
                 },
-                singleLine = true,
-                maxLines = 1,
-                label = { Text("Birth City, State, Country", maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-            
-            if (latitude != 0.0 || longitude != 0.0) {
-                Text(
-                    text = "Coordinates: ${"%.2f".format(latitude)}, ${"%.2f".format(longitude)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, top = 4.dp)
-                )
-            } else {
-                TextButton(
-                    onClick = {
-                        isResolvingLoc = true
-                        viewModel.resolveLocation(locationQuery, { formatted, lat, lon ->
-                            locationQuery = formatted
-                            latitude = lat
-                            longitude = lon
-                            isResolvingLoc = false
-                        }, {
-                            isResolvingLoc = false
-                        })
-                    },
-                    enabled = locationQuery.isNotBlank() && !isResolvingLoc
-                ) {
-                    Text(if (isResolvingLoc) "Locating..." else "Find Coordinates")
+                latitude = latitude,
+                longitude = longitude,
+                onLocationSelected = { city ->
+                    locationQuery = city.formatted
+                    latitude = city.latitude
+                    longitude = city.longitude
+                },
+                isResolvingOnline = isResolvingLoc,
+                onTriggerOnlineSearch = {
+                    isResolvingLoc = true
+                    viewModel.resolveLocation(locationQuery, { formatted, lat, lon ->
+                        locationQuery = formatted
+                        latitude = lat
+                        longitude = lon
+                        isResolvingLoc = false
+                    }, {
+                        isResolvingLoc = false
+                    })
                 }
-            }
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Row(
@@ -404,22 +569,48 @@ fun SettingsScreen(
             ) {
                 OutlinedButton(
                     onClick = {
-                        if (isFormValid) {
+                        if (isFormValid && !isResolvingLoc) {
                             val birthDate = "$birthMonth/$birthDay/$birthYear"
                             val finalTime = if (unknownTime) "Unknown (12:00 PM)" else "$birthHour:$birthMinute"
-                            val location = locationQuery
-                            viewModel.saveSavedProfile(
-                                name = name,
-                                birthDate = birthDate,
-                                birthTime = finalTime,
-                                birthLocation = location,
-                                relationshipType = "Friend/Family",
-                                latitude = latitude,
-                                longitude = longitude
-                            )
+                            if (latitude != 0.0 || longitude != 0.0) {
+                                viewModel.saveSavedProfile(
+                                    name = name,
+                                    birthDate = birthDate,
+                                    birthTime = finalTime,
+                                    birthLocation = locationQuery,
+                                    relationshipType = "Friend/Family",
+                                    latitude = latitude,
+                                    longitude = longitude
+                                )
+                            } else {
+                                isResolvingLoc = true
+                                viewModel.resolveLocation(locationQuery, { resAddr, lat, lon ->
+                                    isResolvingLoc = false
+                                    viewModel.saveSavedProfile(
+                                        name = name,
+                                        birthDate = birthDate,
+                                        birthTime = finalTime,
+                                        birthLocation = resAddr,
+                                        relationshipType = "Friend/Family",
+                                        latitude = lat,
+                                        longitude = lon
+                                    )
+                                }, {
+                                    isResolvingLoc = false
+                                    viewModel.saveSavedProfile(
+                                        name = name,
+                                        birthDate = birthDate,
+                                        birthTime = finalTime,
+                                        birthLocation = locationQuery,
+                                        relationshipType = "Friend/Family",
+                                        latitude = latitude,
+                                        longitude = longitude
+                                    )
+                                })
+                            }
                         }
                     },
-                    enabled = isFormValid,
+                    enabled = isFormValid && !isResolvingLoc,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
@@ -431,15 +622,27 @@ fun SettingsScreen(
 
                 Button(
                     onClick = {
-                        if (isFormValid) {
+                        if (isFormValid && !isResolvingLoc) {
                             val birthDate = "$birthMonth/$birthDay/$birthYear"
                             val finalTime = if (unknownTime) "Unknown (12:00 PM)" else "$birthHour:$birthMinute"
-                            val location = locationQuery
-                            viewModel.updateProfile(name, birthDate, finalTime, location, latitude, longitude)
-                            onBack()
+                            if (latitude != 0.0 || longitude != 0.0) {
+                                viewModel.updateProfile(name, birthDate, finalTime, locationQuery, latitude, longitude)
+                                onBack()
+                            } else {
+                                isResolvingLoc = true
+                                viewModel.resolveLocation(locationQuery, { resAddr, lat, lon ->
+                                    isResolvingLoc = false
+                                    viewModel.updateProfile(name, birthDate, finalTime, resAddr, lat, lon)
+                                    onBack()
+                                }, {
+                                    isResolvingLoc = false
+                                    viewModel.updateProfile(name, birthDate, finalTime, locationQuery, latitude, longitude)
+                                    onBack()
+                                })
+                            }
                         }
                     },
-                    enabled = isFormValid,
+                    enabled = isFormValid && !isResolvingLoc,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
@@ -449,7 +652,17 @@ fun SettingsScreen(
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
-                    Text("Update Info", fontSize = 14.sp, color = if (isFormValid) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (isResolvingLoc) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Locating...", fontSize = 14.sp)
+                    } else {
+                        Text("Update Info", fontSize = 14.sp, color = if (isFormValid) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
