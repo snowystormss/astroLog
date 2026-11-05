@@ -7,6 +7,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.HistoryEdu
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +36,8 @@ fun SettingsScreen(
     viewModel: MainViewModel,
     profile: UserProfile,
     onBack: () -> Unit = {},
-    onNavigateToCodex: () -> Unit = {}
+    onNavigateToCodex: () -> Unit = {},
+    onNavigateToModelHub: () -> Unit = {}
 ) {
     var name by rememberSaveable { mutableStateOf(profile.name) }
     
@@ -58,6 +67,28 @@ fun SettingsScreen(
     val userSettings by viewModel.userSettings.collectAsStateWithLifecycle()
     val settings = userSettings ?: com.example.data.UserSettings()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    var isExporting100Year by remember { mutableStateOf(false) }
+    var generatedReportMarkdown by remember { mutableStateOf<String?>(null) }
+    var showPreviewDialog by remember { mutableStateOf(false) }
+    var previewMarkdownContent by remember { mutableStateOf<String?>(null) }
+
+    val createDocLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/markdown")
+    ) { uri ->
+        uri?.let { destUri ->
+            generatedReportMarkdown?.let { mdContent ->
+                try {
+                    context.contentResolver.openOutputStream(destUri)?.use { out ->
+                        out.write(mdContent.toByteArray(Charsets.UTF_8))
+                    }
+                    android.widget.Toast.makeText(context, "100-Year Life Dossier (.md) exported successfully!", android.widget.Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Failed to save dossier: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     com.example.ui.components.CosmicBackground {
         LazyColumn(
@@ -107,9 +138,11 @@ fun SettingsScreen(
                             .background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape),
                         contentAlignment = androidx.compose.ui.Alignment.Center
                     ) {
-                        Text(
-                            text = "📜",
-                            fontSize = 24.sp
+                        Icon(
+                            imageVector = Icons.Default.AutoStories,
+                            contentDescription = "Zodiac Codex",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(16.dp))
@@ -134,6 +167,63 @@ fun SettingsScreen(
                             .padding(start = 8.dp)
                             .rotate(180f),
                         tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // On-Device AI & 4B Model Hub Card
+            Card(
+                onClick = onNavigateToModelHub,
+                modifier = Modifier
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.secondaryContainer, androidx.compose.foundation.shape.CircleShape),
+                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Memory,
+                            contentDescription = "On-Device AI Host",
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "On-Device AI & 4B Model Hub",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Host 4B & under quantized models (.gguf), monitor RAM, and manage 16k context.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Open Model Hub",
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .rotate(180f),
+                        tint = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -415,6 +505,206 @@ fun SettingsScreen(
             }
         }
 
+        // Data, Export & Backup Section
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Data, Export & Backup",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Export and archive your lifelong astrological data and planetary cycles.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 100-Year Life Astrology Export Card
+                val birthYr = if (profile.birthDate.contains("/")) {
+                    profile.birthDate.split("/").getOrNull(2)?.toIntOrNull() ?: 2000
+                } else {
+                    profile.birthDate.split("-").getOrNull(0)?.toIntOrNull() ?: 2000
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape),
+                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.HistoryEdu,
+                                    contentDescription = "100-Year Export",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "100-Year Life Astrology Dossier",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "Ages 0 to 100 • $birthYr – ${birthYr + 100} • .md",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Exports a complete chronological life ledger in Markdown (.md) text dating from the start of your birth ($birthYr) through 100 years ($birthYr – ${birthYr + 100}). Includes 101 annual Hellenistic profections, active Time Lords, 3 Saturn Returns, 8 Jupiter Returns, Chiron Return, Uranus opposition, and celestial life milestones.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isExporting100Year) {
+                            Row(
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Calculating 100-Year Life Timeline...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        isExporting100Year = true
+                                        viewModel.generate100YearAstrologyReport(profile) { md ->
+                                            isExporting100Year = false
+                                            generatedReportMarkdown = md
+                                            val sanitized = profile.name.trim().replace("\\s+".toRegex(), "_")
+                                            createDocLauncher.launch("AstroLog_100_Year_Timeline_${sanitized}_$birthYr.md")
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1.3f)
+                                        .height(48.dp)
+                                        .testTag("export_100_year_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FileDownload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Export .md", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        isExporting100Year = true
+                                        viewModel.generate100YearAstrologyReport(profile) { md ->
+                                            isExporting100Year = false
+                                            generatedReportMarkdown = md
+                                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(android.content.Intent.EXTRA_SUBJECT, "100-Year Cosmic Astrology Dossier - ${profile.name}")
+                                                putExtra(android.content.Intent.EXTRA_TEXT, md)
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share 100-Year Dossier"))
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1.1f)
+                                        .height(48.dp)
+                                        .testTag("share_100_year_button"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Share", fontSize = 13.sp)
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        isExporting100Year = true
+                                        viewModel.generate100YearAstrologyReport(profile) { md ->
+                                            isExporting100Year = false
+                                            previewMarkdownContent = md
+                                            showPreviewDialog = true
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .testTag("preview_100_year_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Visibility,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Preview", fontSize = 13.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+
         item {
             Column(modifier = Modifier) {
             Text(
@@ -683,6 +973,80 @@ fun SettingsScreen(
             }
             }
         }
+    }
+
+    if (showPreviewDialog && previewMarkdownContent != null) {
+        val birthYr = if (profile.birthDate.contains("/")) {
+            profile.birthDate.split("/").getOrNull(2)?.toIntOrNull() ?: 2000
+        } else {
+            profile.birthDate.split("-").getOrNull(0)?.toIntOrNull() ?: 2000
+        }
+        AlertDialog(
+            onDismissRequest = { showPreviewDialog = false },
+            title = {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "100-Year Dossier Preview",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    Text(
+                        text = "Centennial Span: $birthYr — ${birthYr + 100} (101 Life Years • 10 Decades)",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    ) {
+                        LazyColumn(modifier = Modifier.padding(12.dp)) {
+                            item {
+                                Text(
+                                    text = previewMarkdownContent ?: "",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPreviewDialog = false
+                        generatedReportMarkdown = previewMarkdownContent
+                        val sanitized = profile.name.trim().replace("\\s+".toRegex(), "_")
+                        createDocLauncher.launch("AstroLog_100_Year_Timeline_${sanitized}_$birthYr.md")
+                    }
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Export .md")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPreviewDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 }

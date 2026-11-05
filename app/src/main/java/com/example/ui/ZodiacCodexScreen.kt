@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.CosmicBackground
+import com.example.ui.components.PlanetVectorIcon
+import com.example.ui.components.AstroIconHelper
 
 data class CodexItem(
     val title: String,
@@ -208,18 +210,38 @@ fun CodexCard(item: CodexItem) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = item.subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val cleanName = item.title.substringBefore("(").replace("The ", "").trim()
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        PlanetVectorIcon(
+                            planetName = cleanName,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = item.subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -394,7 +416,7 @@ fun getZodiacSignsData(): List<CodexItem> = listOf(
 
 fun getPlanetsData(): List<CodexItem> = listOf(
     CodexItem(
-        title = "The Sun ☉",
+        title = "The Sun",
         subtitle = "Core Identity & The Conscious Will",
         badge = "Luminary",
         summary = "The center of your personal solar system represents your conscious ego, vitality, self-expression, and life purpose.",
@@ -402,7 +424,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Sun", "Identity", "Vitality", "Leo")
     ),
     CodexItem(
-        title = "The Moon ☽",
+        title = "The Moon",
         subtitle = "Emotions, Instincts & Comfort Zone",
         badge = "Luminary",
         summary = "The reflective luminary governs unconscious reactions, daily habits, emotional security, family heritage, and the mother archetype.",
@@ -410,7 +432,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Moon", "Emotions", "Intuition", "Cancer")
     ),
     CodexItem(
-        title = "Mercury ☿",
+        title = "Mercury",
         subtitle = "The Intellect & Communication Style",
         badge = "Personal",
         summary = "The messenger god governs reasoning, problem-solving, speech, writing, information absorption, and short-distance travel.",
@@ -418,7 +440,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Mercury", "Mind", "Speech", "Gemini", "Virgo")
     ),
     CodexItem(
-        title = "Venus ♀",
+        title = "Venus",
         subtitle = "Love, Values, Beauty & Aesthetics",
         badge = "Personal",
         summary = "Known as the 'Lesser Benefic', Venus governs what you attract, your aesthetic tastes, partnership harmony, and personal spending habits.",
@@ -426,7 +448,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Venus", "Love", "Money", "Taurus", "Libra")
     ),
     CodexItem(
-        title = "Mars ♂",
+        title = "Mars",
         subtitle = "Energy, Ambition, Action & Desire",
         badge = "Personal",
         summary = "The red planet of drive and courage governs how you assert yourself, take initiative, confront obstacles, and channel passions.",
@@ -434,7 +456,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Mars", "Action", "Courage", "Aries", "Scorpio")
     ),
     CodexItem(
-        title = "Jupiter ♃",
+        title = "Jupiter",
         subtitle = "Expansion, Fortune & Philosophy",
         badge = "Social",
         summary = "The 'Greater Benefic' governs abundance, higher education, spiritual wisdom, optimism, ethics, and fortunate opportunities.",
@@ -442,7 +464,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Jupiter", "Luck", "Expansion", "Sagittarius")
     ),
     CodexItem(
-        title = "Saturn ♄",
+        title = "Saturn",
         subtitle = "Karma, Discipline & Life Structure",
         badge = "Social",
         summary = "The great teacher and taskmaster governs maturity, boundaries, perseverance, career achievements, and karmic life lessons.",
@@ -450,7 +472,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Saturn", "Discipline", "Karma", "Capricorn")
     ),
     CodexItem(
-        title = "Uranus ♅",
+        title = "Uranus",
         subtitle = "Awakening, Innovation & Rebellion",
         badge = "Generational",
         summary = "The higher octave of Mercury represents sudden epiphanies, breakthrough technologies, nonconformity, and individual freedom.",
@@ -458,7 +480,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Uranus", "Freedom", "Insight", "Aquarius")
     ),
     CodexItem(
-        title = "Neptune ♆",
+        title = "Neptune",
         subtitle = "Dreams, Mysticism & Universal Compassion",
         badge = "Generational",
         summary = "The higher octave of Venus dissolves boundaries to reveal transcendent art, spirituality, psychic perception, and unconditional love.",
@@ -466,7 +488,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Neptune", "Spirituality", "Art", "Pisces")
     ),
     CodexItem(
-        title = "Pluto ♇",
+        title = "Pluto",
         subtitle = "Transformation, Power & Rebirth",
         badge = "Generational",
         summary = "The god of the underworld represents the deepest cycles of psychological death, purification, unyielding willpower, and monumental rebirth.",
@@ -474,7 +496,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Pluto", "Power", "Rebirth", "Scorpio")
     ),
     CodexItem(
-        title = "North & South Nodes ☊ ☋",
+        title = "North & South Nodes",
         subtitle = "The Axis of Destiny & Karmic Heritage",
         badge = "Karmic Axis",
         summary = "The Moon's orbital nodes represent the soul's compass: the South Node is ingrained comfort, while the North Node is the path of evolutionary growth.",
@@ -482,7 +504,7 @@ fun getPlanetsData(): List<CodexItem> = listOf(
         tags = listOf("Nodes", "Destiny", "Karma", "Growth")
     ),
     CodexItem(
-        title = "Chiron ⚷",
+        title = "Chiron",
         subtitle = "The Wounded Healer",
         badge = "Centaur",
         summary = "Represents your deepest core vulnerability and the transcendent empathy, wisdom, and medicine you offer to others.",

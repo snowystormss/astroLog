@@ -269,4 +269,69 @@ class ExampleUnitTest {
         assertEquals("TX", bestMatch?.stateCode)
         assertTrue(bestMatch!!.latitude > 29.0)
     }
+
+    @Test
+    fun testRollingContextManagerAndPruning() {
+        val manager = com.example.data.RollingContextManager(maxTokens = 500)
+        manager.setSystemAnchor("User: Jane Doe | Sun: Leo | Moon: Pisces")
+        val anchorState = manager.getContextState()
+        assertTrue(anchorState.systemAnchorTokens > 0)
+
+        // Add small turns
+        manager.addMessage("user", "Hello Guide")
+        manager.addMessage("assistant", "Greetings, Jane.")
+        assertEquals(2, manager.getRecentTurns().size)
+
+        // Add a very large message that forces pruning
+        val largeMessage = "Cosmic observation ".repeat(200)
+        manager.addMessage("user", largeMessage)
+
+        val stateAfter = manager.getContextState()
+        // Ceiling should be respected
+        assertTrue(stateAfter.estimatedActiveTokens <= 500)
+        // Immutable system anchor must be preserved
+        assertEquals("User: Jane Doe | Sun: Leo | Moon: Pisces", manager.getSystemAnchor())
+    }
+
+    @Test
+    fun test100YearAstrologyReportGeneration() {
+        val profile = com.example.data.UserProfile(
+            name = "Aria Solis",
+            birthDate = "05/15/1995",
+            birthTime = "14:30",
+            birthLocation = "San Francisco, CA",
+            sunSign = "Taurus",
+            moonSign = "Scorpio",
+            risingSign = "Virgo",
+            latitude = 37.7749,
+            longitude = -122.4194
+        )
+
+        val markdown = com.example.ui.AstrologyTimelineGenerator.generate100YearMarkdownReport(profile)
+        assertNotNull(markdown)
+        assertTrue(markdown.isNotEmpty())
+
+        // Check metadata & title
+        assertTrue(markdown.contains("COSMIC LIFE LEDGER: 100-YEAR ASTROLOGICAL TIMELINE"))
+        assertTrue(markdown.contains("Aria Solis"))
+        assertTrue(markdown.contains("1995 — 2095"))
+        assertTrue(markdown.contains("Ages 0 to 100"))
+
+        // Check all 10 decades exist
+        for (decade in 1..10) {
+            assertTrue("Should contain Decade $decade", markdown.contains("Decade $decade:"))
+        }
+
+        // Check age 0 and age 100 exist in the ledger
+        assertTrue(markdown.contains("| **0** | 1995 | House 1 |"))
+        assertTrue(markdown.contains("| **100** | 2095 |"))
+
+        // Check milestone occurrences
+        assertTrue(markdown.contains("1ST SATURN RETURN"))
+        assertTrue(markdown.contains("2ND SATURN RETURN"))
+        assertTrue(markdown.contains("URANUS OPPOSITION"))
+        assertTrue(markdown.contains("Chiron Return"))
+        assertTrue(markdown.contains("URANUS RETURN"))
+        assertTrue(markdown.contains("Jupiter Return"))
+    }
 }

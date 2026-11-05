@@ -43,6 +43,7 @@ fun HomeScreen(
     val dailyAffirmation by viewModel.dailyAffirmation.collectAsStateWithLifecycle()
     val allInsights by viewModel.allInsights.collectAsStateWithLifecycle()
     var showChat by remember { mutableStateOf(false) }
+    var showModelHub by remember { mutableStateOf(false) }
     val chatViewModel: ChatViewModel = viewModel()
 
     val userSettings by viewModel.userSettings.collectAsStateWithLifecycle()
@@ -125,6 +126,9 @@ fun HomeScreen(
                     }
                 }
             }
+        } else if (showModelHub) {
+            androidx.activity.compose.BackHandler { showModelHub = false }
+            OnDeviceModelHubScreen(onBack = { showModelHub = false })
         } else {
             androidx.compose.animation.AnimatedContent(
                 targetState = showChat,
@@ -152,7 +156,14 @@ fun HomeScreen(
             ) { isChat ->
                 if (isChat) {
                     BackHandler { showChat = false }
-                    ChatScreen(chatViewModel = chatViewModel, profile = profile, insights = allInsights, settings = userSettings, onClose = { showChat = false })
+                    ChatScreen(
+                        chatViewModel = chatViewModel,
+                        profile = profile,
+                        insights = allInsights,
+                        settings = userSettings,
+                        onClose = { showChat = false },
+                        onNavigateToModelHub = { showModelHub = true }
+                    )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
                         val lunarEventAlert by viewModel.lunarEventAlert.collectAsStateWithLifecycle()

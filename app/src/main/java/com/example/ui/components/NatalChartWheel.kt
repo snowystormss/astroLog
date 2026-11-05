@@ -172,10 +172,10 @@ fun NatalChartWheel(
                             val houseNum = PlanetCalculator.getPlanetHouse(pos.longitude, cusps, houseSystem)
                             val dignity = PlanetCalculator.calculateDignity(name, signName)
                             val dignityBadge = when (dignity) {
-                                DignityType.DOMICILE -> "⭐ Domicile"
-                                DignityType.EXALTATION -> "🔺 Exalted"
-                                DignityType.DETRIMENT -> "⚠️ Detriment"
-                                DignityType.FALL -> "🔻 Fall"
+                                DignityType.DOMICILE -> "Ruler"
+                                DignityType.EXALTATION -> "Exalted"
+                                DignityType.DETRIMENT -> "Detriment"
+                                DignityType.FALL -> "Fall"
                                 DignityType.PEREGRINE -> "Peregrine"
                             }
                             tapped = "$name in $signName (${pos.degree}°${pos.minute}')\nHouse $houseNum • $dignityBadge"
@@ -543,11 +543,11 @@ fun DrawScope.drawNatalChartInternal(
     }
 
     // 5. Draw Celestial Bodies in Middle Ring (radius * 0.62f)
-    val glyphMap = mapOf(
-        "Sun" to "☉", "Moon" to "☽", "Mercury" to "☿", "Venus" to "♀",
-        "Mars" to "♂", "Jupiter" to "♃", "Saturn" to "♄", "Uranus" to "♅",
-        "Neptune" to "♆", "Pluto" to "♇", "North Node" to "☊", "South Node" to "☋",
-        "Chiron" to "⚷", "Lilith" to "⚸", "Part of Fortune" to "⊕"
+    val abbrevMap = mapOf(
+        "Sun" to "SU", "Moon" to "MO", "Mercury" to "ME", "Venus" to "VE",
+        "Mars" to "MA", "Jupiter" to "JU", "Saturn" to "SA", "Uranus" to "UR",
+        "Neptune" to "NE", "Pluto" to "PL", "North Node" to "NN", "South Node" to "SN",
+        "Chiron" to "CH", "Lilith" to "LI", "Part of Fortune" to "PF"
     )
 
     planets.forEach { (name, pos) ->
@@ -567,12 +567,12 @@ fun DrawScope.drawNatalChartInternal(
             drawIntoCanvas { canvas ->
                 val paint = android.graphics.Paint().apply {
                     color = onSurface.toArgb()
-                    textSize = 28f * scaleFactor
+                    textSize = 24f * scaleFactor
                     textAlign = android.graphics.Paint.Align.CENTER
                     isAntiAlias = true
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                 }
-                val label = glyphMap[name] ?: name.take(2)
+                val label = abbrevMap[name] ?: name.take(2).uppercase()
                 canvas.nativeCanvas.drawText(label, pX, pY - (12f * scaleFactor), paint)
             }
         }

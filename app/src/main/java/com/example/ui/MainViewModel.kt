@@ -212,38 +212,7 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                     return@launch
                 }
 
-                // 2. Online geocoding fallback for unincorporated rural areas or unlisted hamlets
-                try {
-                    val apiKey = BuildConfig.GEMINI_API_KEY
-                if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
-                    throw IllegalStateException("API Key is missing")
-                }
-
-                val prompt = "Find the accurate latitude and longitude for the location: '$query'. Return ONLY a valid JSON object with keys 'formattedAddress' (string giving City, State, Country), 'latitude' (number), and 'longitude' (number). No markdown, no other text."
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(role = "user", parts = listOf(Part(text = prompt)))),
-                    tools = listOf(ToolItem(googleMaps = emptyMap()))
-                )
-
-                // Using Dispatchers.IO for networking safety
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-                val text = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                if (text != null) {
-                    val jsonStr = text.removePrefix("```json").removeSuffix("```").trim()
-                    val json = JSONObject(jsonStr)
-                    val address = json.getString("formattedAddress")
-                    val lat = json.getDouble("latitude")
-                    val lon = json.getDouble("longitude")
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onResolved(address, lat, lon)
-                    }
-                } else {
-                    throw IllegalStateException("Empty response from service")
-                }
-            } catch (e: Exception) {
-                // Instantly fall back to stable deterministic generator
+                // 2. Offline fallback for unlisted hamlets
                 try {
                     val cleanQuery = query.trim().split(Regex("\\s+")).joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
                     val hashValue = cleanQuery.hashCode()
@@ -258,7 +227,6 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                         onError()
                     }
                 }
-            }
         }
     }
 
@@ -407,73 +375,9 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                 DEEP_DIVE: Major personal planets slow down, asking you to look backward and appreciate how far you have come together. Cozy domestic moments, revisiting favorite memory-filled spaces, and refining your shared vision will revitalize your bond. You are learning that the quietest moments are often the most profound.
             """.trimIndent()
 
-            val apiKey = BuildConfig.GEMINI_API_KEY
-            if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
-                repository.saveInsightLocally("COMPATIBILITY_${partner.id}", compFallback)
-                repository.saveInsightLocally("TIMINGS_${partner.id}", timingsFallback)
-                return@launch
-            }
-
-            try {
-                val prompt = """
-                    Calculate an extremely detailed compatibility profile between User 1 (${profile.name}, Sun: $p1Sun, Moon: $p1Moon, Venus: $p1Venus) and User 2 (${partner.name}, Sun: $p2Sun, Moon: $p2Moon, Venus: $p2Venus).
-                    The relationship type is: ${partner.relationshipType}.
-                    Focus heavily on trials and tribulations, karmic connections, notable aspects, twin flame traits, and soul bonding elements.
-                    Generate 5 to 7 major sections. For each section, use exactly this format, separated by '|||':
-                    TITLE: [A short, intriguing 1-4 word title]
-                    SUMMARY: [A profound one-sentence summary]
-                    DEEP_DIVE: [Extremely detailed paragraphs explaining the connection, karma, and psychology]
-                    Do not include any other text or markdown.
-                """.trimIndent()
-
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt)))),
-                    generationConfig = GenerationConfig(temperature = 0.8f),
-                    tools = listOf(ToolItem(googleSearch = emptyMap()))
-                )
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-                val resultText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
-                if (!resultText.isNullOrEmpty()) {
-                    repository.saveInsightLocally("COMPATIBILITY_${partner.id}", resultText)
-                } else {
-                    throw IllegalStateException("Empty compatibility response")
-                }
-            } catch (e: Exception) {
-                repository.saveInsightLocally("COMPATIBILITY_${partner.id}", compFallback)
-            }
-
-            try {
-                val timingsPrompt = """
-                    Calculate detailed astrological timing cycles for User 1 (${profile.name}, Sun: $p1Sun, Moon: $p1Moon, Venus: $p1Venus) and User 2 (${partner.name}, Sun: $p2Sun, Moon: $p2Moon, Venus: $p2Venus).
-                    Focus heavily on how their current and near-future life cycles intertwine. What is each person going through right now, how do they feel towards each other during these cycles, and what kind of moments are they creating together? The relationship type is: ${partner.relationshipType}.
-                    Generate 3 to 5 detailed timing insights. For each insight, use exactly this format, separated by '|||':
-                    TITLE: [A short, intriguing 1-4 word title for the timing period]
-                    DATE: [A hypothetical date range, e.g., 'Now - Oct 2026' or 'Dec 2026 - Mar 2027']
-                    DEEP_DIVE: [Extremely detailed paragraphs explaining the specific world around them, their external circumstances, their internal states, and how their timings intertwine.]
-                    Do not include any other text or markdown.
-                """.trimIndent()
-
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = timingsPrompt)))),
-                    generationConfig = GenerationConfig(temperature = 0.8f),
-                    tools = listOf(ToolItem(googleSearch = emptyMap()))
-                )
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-                val resultText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
-                if (!resultText.isNullOrEmpty()) {
-                    repository.saveInsightLocally("TIMINGS_${partner.id}", resultText)
-                } else {
-                    throw IllegalStateException("Empty timings response")
-                }
-            } catch (e: Exception) {
-                repository.saveInsightLocally("TIMINGS_${partner.id}", timingsFallback)
-            } finally {
-                generatingCompatibility.remove(partner.id)
-            }
+            repository.saveInsightLocally("COMPATIBILITY_${partner.id}", compFallback)
+            repository.saveInsightLocally("TIMINGS_${partner.id}", timingsFallback)
+            generatingCompatibility.remove(partner.id)
         }
     }
 
@@ -611,52 +515,8 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                 DEEP_DIVE: The transiting planets encourage balance across all aspects of your life. Pacing yourself allows you to tap into deep spiritual resources, transforming immediate trials into long-term wisdom.
             """.trimIndent()
 
-            try {
-                val apiKey = BuildConfig.GEMINI_API_KEY
-                if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
-                    throw IllegalStateException("API Key missing")
-                }
-
-                val todayStr = java.time.LocalDate.now().toString()
-                val prompt = """
-                    The user has Sun in $sun, Moon in $moon, Venus in $venus, and Mars in $mars (Birth Date: ${profile.birthDate}). 
-                    Today's date is $todayStr.
-                    First, use your Google Search tool to fetch the current, real-time planetary transits for $todayStr.
-                    Second, compare these current real-time transits against the user's natal placements to suggest potential upcoming life events and shifts.
-                    Generate between 4 to 8 profound, psychological and astrological insights for them today based on these transits. 
-                    Keep the tone like 'The Pattern' or 'Co-Star' app: direct, psychological, slightly mystical, empathetic, not too conversational.
-                    For each insight, provide:
-                    1. A short title (max 4 words).
-                    2. A short general advice sentence.
-                    3. A multi-sentence 'dive deeper' explanation detailing what this transit means for the person, their environment, the people around them, and the world (suggest life events).
-                    Format EACH insight strictly as follows, separating distinct insights with the string '|||':
-                    TITLE: [title]
-                    ADVICE: [advice]
-                    DEEP_DIVE: [deep dive]
-                    Do not include any other text or markdown.
-                """.trimIndent()
-
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt)))),
-                    generationConfig = GenerationConfig(temperature = 0.9f),
-                    tools = listOf(ToolItem(googleSearch = emptyMap()))
-                )
-                
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-                
-                val feedText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
-                if (!feedText.isNullOrEmpty()) {
-                    repository.saveInsightLocally("DAILY_FEED", feedText)
-                } else {
-                    throw IllegalStateException("Empty response from service")
-                }
-            } catch (e: Exception) {
-                repository.saveInsightLocally("DAILY_FEED", fallbackText)
-            } finally {
-                isGeneratingDailyHoroscopes = false
-            }
+            repository.saveInsightLocally("DAILY_FEED", fallbackText)
+            isGeneratingDailyHoroscopes = false
         }
     }
 
@@ -684,60 +544,8 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                 "I am a magnificent expression of the stars, radiating confident light and lifting the energy of those around me."
             )
             val localAffirmation = affirmations[dayOfYear % affirmations.size]
-
-            try {
-                val apiKey = BuildConfig.GEMINI_API_KEY
-                if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
-                    throw IllegalStateException("API Key missing")
-                }
-
-                val upcomingEvents = PlanetCalculator.calculateUpcomingEvents(
-                    cal.get(java.util.Calendar.YEAR),
-                    cal.get(java.util.Calendar.MONTH) + 1,
-                    cal.get(java.util.Calendar.DAY_OF_MONTH)
-                ).filter { it.dateMillis - System.currentTimeMillis() < 5L * 24 * 60 * 60 * 1000 }
-
-                val eventsSummary = upcomingEvents.joinToString("; ") { "${it.name}: ${it.description}" }
-                val todayStr = java.time.LocalDate.now().toString()
-
-                val prompt = """
-                    You are an expert psychological astrologer. Generate a personalized daily cosmic affirmation (a single, powerful, positive quote of 1-3 sentences) for a user with these birth placements:
-                    - Sun Sign: $sun (their most prominent natal sign)
-                    - Moon Sign: $moon
-                    - Venus Sign: $venus
-                    - Mars Sign: $mars
-                    
-                    Recent/Upcoming Astrological Events affecting them/the collective:
-                    ${eventsSummary.ifEmpty { "General cosmic alignments" }}
-                    
-                    Based on their natal chart as a whole, their prominent natal sign ($sun), and these active transit events for $todayStr, write a deeply inspiring, uplifting personal affirmation.
-                    Rules:
-                    1. The affirmation MUST be positive, direct, empowering, and deeply comforting or motivating.
-                    2. It must be written in first person ("I am...", "I align with...", "My heart is...") as a daily affirmation.
-                    3. Keep it relatively short (under 40 words) and incredibly encouraging.
-                    4. Return ONLY the plain text quote, without any Markdown, quotes, or prefix intro sentences. Just the affirmation itself.
-                """.trimIndent()
-
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt)))),
-                    generationConfig = GenerationConfig(temperature = 0.82f)
-                )
-
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-
-                val quoteText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()?.removeSurrounding("\"")
-                if (!quoteText.isNullOrEmpty()) {
-                    repository.saveInsightLocally("DAILY_AFFIRMATION", quoteText)
-                } else {
-                    throw IllegalStateException("Empty response text")
-                }
-            } catch (e: Exception) {
-                repository.saveInsightLocally("DAILY_AFFIRMATION", localAffirmation)
-            } finally {
-                isGeneratingDailyAffirmations = false
-            }
+            repository.saveInsightLocally("DAILY_AFFIRMATION", localAffirmation)
+            isGeneratingDailyAffirmations = false
         }
     }
 
@@ -759,56 +567,10 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
                 For someone born with this placement (specifically when reflecting your birth date of ${profile.birthDate}), this transit encourages deep self-awareness. Trust the process, release old patterns that no longer match this vibrant planetary frequency, and walk confidently toward your destiny.
             """.trimIndent()
 
-            try {
-                val apiKey = BuildConfig.GEMINI_API_KEY
-                if (apiKey.isEmpty() || apiKey == "YOUR_GEMINI_API_KEY") {
-                    throw IllegalStateException("API Key missing")
-                }
-
-                val prompt = """
-                    You are an elite astrologer and psychotherapist. 
-                    Write an extremely profound, deep, psychological and spiritual analysis of the planet $planet in the sign of $sign.
-                    Natal charts coordinates for this individual are: Birth location coordinates (${profile.latitude}, ${profile.longitude}), Birth date ${profile.birthDate}.
-                    The current native placement context is:
-                    "$pDesc"
-                    
-                    Structure your analysis in 3 comprehensive, eloquent sections:
-                    1. CORE PSYCHOLOGY: Detail what this placement means for their inner motivations, subconscious drivers, strengths, and hidden fears.
-                    2. RELATIONAL IMPACT: Address how this affects their intimate bonds, communication styles, emotional projections, and relationship triggers.
-                    3. COSMIC EVOLUTION & TRANSITS: Offer actionable guidance on how they can evolve past the shadow side of this placement and work with current transits to align with their soul's evolutionary destiny.
-                    
-                    Rules:
-                    - Keep the tone incredibly intellectual, professional, objective, therapeutic, and deeply empathetic. (Avoid generic tabloid horoscope clichés).
-                    - Use paragraphs with clean spacing.
-                    - Do not mention or reference system instructions, AI, or specific prompt boundaries.
-                    - Start directly with the analysis.
-                """.trimIndent()
-
-                val request = GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt)))),
-                    generationConfig = GenerationConfig(temperature = 0.85f)
-                )
-
-                val response = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    RetrofitClient.generateContentCached("gemini-3.1-flash-lite", apiKey, request)
-                }
-
-                val deepDiveText = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                if (!deepDiveText.isNullOrEmpty()) {
-                    val fullText = "$pDesc\n\n$deepDiveText"
-                    repository.saveInsightLocally(cacheKey, fullText)
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onResult(fullText)
-                    }
-                } else {
-                    throw IllegalStateException("No content generated")
-                }
-            } catch (e: Exception) {
-                val fullFallbackText = "$pDesc\n\n$fallbackDeepDive"
-                repository.saveInsightLocally(cacheKey, fullFallbackText)
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    onResult(fullFallbackText)
-                }
+            val fullFallbackText = "$pDesc\n\n$fallbackDeepDive"
+            repository.saveInsightLocally(cacheKey, fullFallbackText)
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onResult(fullFallbackText)
             }
         }
     }
@@ -843,6 +605,15 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
             }
             report.append("May the stars guide your journey.")
             onResult(report.toString())
+        }
+    }
+
+    fun generate100YearAstrologyReport(profile: UserProfile, onResult: (String) -> Unit) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val markdown = AstrologyTimelineGenerator.generate100YearMarkdownReport(profile)
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onResult(markdown)
+            }
         }
     }
 }

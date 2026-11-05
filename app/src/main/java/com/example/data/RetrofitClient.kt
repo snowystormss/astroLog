@@ -64,6 +64,7 @@ interface GeminiApiService {
 }
 
 object RetrofitClient {
+    const val DEFAULT_MODEL_ID = "gemini-3.5-flash"
     private const val BASE_URL = "https://generativelanguage.googleapis.com/"
 
     private val okHttpClient = OkHttpClient.Builder()

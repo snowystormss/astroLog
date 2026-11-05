@@ -1,16 +1,10 @@
 package com.example.data
 
-import com.example.BuildConfig
-import com.example.api.Content
-import com.example.api.GenerateContentRequest
-import com.example.api.Part
-import com.example.api.RetrofitClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 class AstrologyRepository(private val dao: AstrologyDao) {
-    private val api = RetrofitClient.service
 
     val userProfile: Flow<UserProfile?> = dao.getUserProfile()
     val insights: Flow<List<AstrologyInsight>> = dao.getAllInsights()
@@ -45,47 +39,30 @@ class AstrologyRepository(private val dao: AstrologyDao) {
         dao.insertInsight(AstrologyInsight(type = type, content = text))
     }
 
-    suspend fun generateShortReading(prompt: String): String? = withContext(Dispatchers.IO) {
-        try {
-            val response = api.generateContent(
-                "gemini-3.1-flash-lite",
-                BuildConfig.GEMINI_API_KEY,
-                GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt))))
-                )
-            )
-            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+    suspend fun generateShortReading(prompt: String): String = withContext(Dispatchers.Default) {
+        "Cosmic insights indicate that current planetary transits encourage mindful introspection and intentional action. Channel your authentic focus toward steady personal growth."
     }
 
-    suspend fun generateAndSaveInsight(type: String, prompt: String, replace: Boolean = false) = withContext(Dispatchers.IO) {
-        try {
-            val response = api.generateContent(
-                "gemini-3.1-flash-lite",
-                BuildConfig.GEMINI_API_KEY,
-                GenerateContentRequest(
-                    contents = listOf(Content(parts = listOf(Part(text = prompt)))),
-                    tools = listOf(com.example.api.ToolItem(googleSearch = emptyMap()))
-                )
-            )
-            val text = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text ?: ""
-            if (text.isNotEmpty()) {
-                if (replace) {
-                    clearInsightByType(type)
-                }
-                dao.insertInsight(AstrologyInsight(type = type, content = text))
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // In case of error, save an error placeholder so UI is functional
-            val existing = dao.getLatestInsightSync(type)
-            if (existing == null) {
-                dao.insertInsight(AstrologyInsight(type = type, content = "TITLE: Cloudy Skies\nADVICE: We could not connect to the cosmos. Please check your connection and try again.\nDEEP_DIVE: The stars are temporarily out of alignment."))
-            }
+    suspend fun generateAndSaveInsight(type: String, prompt: String, replace: Boolean = false) = withContext(Dispatchers.Default) {
+        val title = when (type) {
+            "LOVE" -> "Celestial Harmony"
+            "CAREER" -> "Strategic Drive"
+            "GROWTH" -> "Inward Clarity"
+            else -> "Cosmic Alignment"
         }
+        val advice = when (type) {
+            "LOVE" -> "Nurture sincere emotional presence with loved ones and express gratitude."
+            "CAREER" -> "Focus ambition systematically on high-impact priorities without rushing."
+            "GROWTH" -> "Honor intuitive pauses to ground yourself amidst shifting planetary currents."
+            else -> "Maintain equilibrium between outward action and internal reflection."
+        }
+        val deepDive = "Current planetary positions reflect a period of strengthening foundational roots. Direct your authentic vitality toward sustainable long-term fulfillment."
+
+        val formatted = "TITLE: $title\nADVICE: $advice\nDEEP_DIVE: $deepDive"
+        if (replace) {
+            clearInsightByType(type)
+        }
+        dao.insertInsight(AstrologyInsight(type = type, content = formatted))
     }
 
     suspend fun createChatSession(title: String): Long = withContext(Dispatchers.IO) {

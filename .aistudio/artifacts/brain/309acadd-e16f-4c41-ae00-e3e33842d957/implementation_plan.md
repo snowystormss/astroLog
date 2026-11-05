@@ -1,86 +1,118 @@
-# Comprehensive 50-State US Cities Database & Smart Search Service
+# 100-Year Life Astrology Data Export (.md)
 
-Expand AstroLog's location database to cover all incorporated cities and towns across all 50 US states with high-precision coordinates, two-way state name/abbreviation resolution, sub-millisecond search performance, and automatic online geocoding fallback for rural or unincorporated hamlets.
+Implement a comprehensive 100-year astrological data export feature in Markdown (`.md`) format, located in the Settings screen under Data & Backup, calculating the complete life timeline and major transit milestones from the user's birth year through age 100.
 
----
+### User Review & Critical Decisions
 
-## 1. Context & User Objectives
+> [!IMPORTANT]
+> **Summary of User Confirmed Specifications**:
+> - **File Format**: Markdown text document (`.md`) with rich structural formatting, headers, tables, and clean metadata for seamless reading in text editors, note apps, and markdown viewers.
+> - **Astrological Dataset**: Complete 100-Year Life Timeline and Transit Milestones spanning age 0 to age 100, incorporating Annual Profections (time lords & activated houses), major Planetary Returns (Saturn at ~29.5/59/88.5, Jupiter 12-year cycles, Chiron at ~50, Uranus half-return/opposition at ~42), Nodal returns, Solar returns, and life chapter syntheses.
+> - **Screen Location**: Settings Screen under a dedicated **Data & Backup** section.
 
-- **Primary Goal:** Provide comprehensive coverage for all incorporated US cities and towns across all 50 states, ensuring US users find their exact birthplace instantly offline.
-- **Clarification Insights:**
-  1. **Dataset Scope:** Full coverage of incorporated cities, towns, boroughs, and municipalities across all 50 US states.
-  2. **State Name & Abbreviation Handling:** Full bi-directional search support (e.g., searching "Dallas, TX" or "Dallas, Texas" or just "Dallas" immediately resolves and displays both the state abbreviation and full name).
-  3. **Unincorporated & Rural Areas:** Transparent fallback to online geocoding (`Geocoder` / Nominatim) when a query is an unincorporated hamlet or rural locality not in the bundled database.
-
----
-
-## 2. Technical Architecture & Data Strategy
-
-### A. Data Asset & Storage Strategy
-Storing thousands of cities directly in Kotlin source code would bloat the bytecode and slow down Gradle compilation. Instead, we will:
-1. **Compact Compressed Asset / Resource (`assets/us_cities.csv` or `assets/us_cities.json.gz`):**
-   - Store all incorporated cities and towns across all 50 US states plus DC and Puerto Rico with fields: `City Name`, `State Code` (e.g., `CA`), `State Full Name` (e.g., `California`), `Latitude`, `Longitude`, and `Population/Rank` for sorting relevance.
-   - Format: Highly compact CSV / delimiter-separated file (e.g., `name|state_code|lat|lon|rank`) bundled directly into `app/src/main/assets/us_cities.tsv`.
-2. **Fast In-Memory Prefix & Token Index (`UsCityRepository` / `CitySearchService`):**
-   - Streamed and indexed in background on first access or app startup using Kotlin Coroutines (`Dispatchers.IO`).
-   - Tokenized lookup trie / index supporting:
-     - Exact prefix matching (`"San..."` -> `San Francisco`, `San Antonio`, `San Diego`, `San Jose`, etc.)
-     - State code and full name indexing (`"Austin, TX"` or `"Austin, Texas"` matches `Austin, Texas, United States`)
-     - Population/relevance weighting so major metropolitan hubs appear before smaller towns sharing the same name (e.g., `Springfield, MO` and `Springfield, IL` before tiny rural Springfields).
-
-### B. Bi-Directional State Mapping
-- A complete immutable map of all 50 US states + DC + US territories:
-  - `"AL" -> "Alabama"`, `"AK" -> "Alaska"`, ..., `"WY" -> "Wyoming"`.
-- When users enter `"Dallas, TX"`, the query parser identifies `"TX"` as Texas and filters results accordingly.
-- When users enter `"Dallas, Texas"`, the query parser also matches `"Texas"`.
-
-### C. Live Search Flow with Online Fallback
-1. **User types query:** Debounced by 200ms.
-2. **Offline Match First:** Search offline repository. If matches are found, return up to 10 top-ranked results instantly (< 5ms response time, completely offline).
-3. **Hybrid Fallback:** If the offline database returns fewer than 3 matches or zero matches, or if the user is typing an unincorporated village or county name, seamlessly trigger the online geocoding lookup (`android.location.Geocoder` / Nominatim HTTP fallback with proper network handling).
-4. **Display & Feedback:**
-   - Display results in the frosted-glass autocomplete menu with city name, state, country, and precise latitude/longitude coordinates.
-   - Show a subtle `Online Result` or `Offline Verified` indicator badge.
-   - Instant coordinate resolution upon selection, ensuring zero `(0.0, 0.0)` calculation errors.
+- **Confirmed Decision 1**: The export is generated locally on-device in a background coroutine using astronomical calculation math, requiring zero external network APIs.
+- **Confirmed Decision 2**: Document creation utilizes Android's native Storage Access Framework (`ActivityResultContracts.CreateDocument("text/markdown")`) paired with a quick-share intent fallback so the user can save to local storage, Google Drive, or send directly to note apps.
+- **Confirmed Decision 3**: The export includes an executive natal snapshot at age 0, followed by a decadal roadmap (Decade 1: Age 0–10 through Decade 10: Age 90–100) breaking down every individual year with its age, Gregorian year, profection house, active planetary ruler, and significant celestial milestones.
 
 ---
 
-## 3. Step-by-Step Implementation Plan
+### 1. Overview & Core Concept
 
-### Step 1: Asset Creation (`app/src/main/assets/us_cities.tsv`)
-- Generate and bundle a comprehensive, curated dataset of all incorporated cities and towns across all 50 US states, with latitude, longitude, state code, and population weighting.
-- Include major international capitals and hubs to preserve global coverage while drastically deepening US density.
-
-### Step 2: Comprehensive State Mapping & Query Parser (`com.example.data.UsStateHelper`)
-- Add state lookup table (`stateCodeToName`, `stateNameToCode`).
-- Clean and normalize query inputs to recognize comma-separated patterns:
-  - `[City, StateAbbr]` (e.g. `Naperville, IL`)
-  - `[City, StateName]` (e.g. `Naperville, Illinois`)
-  - `[City]` alone (e.g. `Naperville`)
-
-### Step 3: High-Performance Search Engine (`com.example.data.CitySearchService`)
-- Upgrade `CitySearchService` to load from the asset asynchronously.
-- Implement token-based scoring:
-  - City prefix match score
-  - State match boost
-  - Population rank tie-breaker
-- Incorporate coroutine-based async online geocoding for unrecognized queries.
-
-### Step 4: UI & Autocomplete Integration Verification
-- Verify integration in `OnboardingScreen.kt` and `SettingsScreen.kt`.
-- Ensure touch target sizes remain >= 48dp, keyboard action navigation is smooth, and selection instantly sets latitude, longitude, and formatted birth city text.
-
-### Step 5: Unit Testing & Verification
-- Add Robolectric / JVM unit tests in `ExampleUnitTest.kt`:
-  - Test searching by abbreviation (`"Miami, FL"` -> Miami, Florida)
-  - Test searching by full state name (`"Seattle, Washington"` -> Seattle, Washington)
-  - Test searching multiple cities with identical names across states (`"Springfield"`)
-  - Test rare/smaller incorporated towns in diverse states (e.g. Alaska, Wyoming, Vermont, Hawaii).
-- Run compilation and tests to ensure 100% build health.
+- **What It Does**: Provides users with an on-demand, comprehensive 100-year astrological dossier starting from their exact birth date and projecting forward a full century (birth year to year + 100). The generated Markdown document details natal placements, annual profections for every year of life (ages 0 to 100), key astrological milestones (Saturn Returns, Jupiter Returns, Uranus Opposition, Chiron Return, Nodal Inversions and Returns), and decadal life chapter themes.
+- **Target Audience / Persona**: Astrology enthusiasts and self-discovery practitioners who want a permanent, searchable, offline life ledger mapping out their celestial timeline across an entire human lifespan.
+- **Key Value**: Replaces piecemeal single-day lookups with a holistic 100-year lifecycle roadmap delivered in an open, portable Markdown format that belongs entirely to the user.
 
 ---
 
-## 4. User Decisions & Trade-Offs
+### 2. User Experience & Visual Design
 
-- **Asset Compression vs Load Time:** Using a clean delimiter-separated asset (`us_cities.tsv`) avoids large class bytecode sizes while keeping startup parsing under 35 milliseconds on Android.
-- **Offline Reliability:** Users can input any incorporated US municipality without requiring an internet connection or cellular signal, while online geocoding provides safety for rural unincorporated areas.
+- **Key User Flows**:
+  1. *Discovery in Settings*:
+     - The user opens the **Settings** screen from the Profile overflow menu or bottom navigation.
+     - Under a new high-visibility **"Data, Export & Backup"** category card, they find the **"100-Year Astrology Life Export"** card.
+     - The card displays the user's active birth date, century span (e.g., `1998 – 2098 • Ages 0 to 100`), and a brief description of the contents.
+  2. *Export Generation & Save*:
+     - User taps **"Export 100-Year Dossier (.md)"**.
+     - A non-blocking progress modal/sheet displays smooth celestial calculation stages:
+       - *Stage 1*: Calculating natal foundation and planetary positions.
+       - *Stage 2*: Computing 100 annual profection houses and ruling time lords.
+       - *Stage 3*: Mapping major planetary returns (Saturn, Jupiter, Chiron, Uranus, Lunar Nodes).
+       - *Stage 4*: Compiling Markdown dossier.
+     - The Android Storage Access Framework document picker opens with a pre-filled file name: `AstroLog_100_Year_Timeline_<UserName>.md`.
+     - Upon selecting a destination folder, the file is written to device storage with confirmation feedback.
+  3. *Quick Share Option*:
+     - Alongside the file picker, a secondary "Share" action allows sending the compiled 100-year markdown text directly to Google Drive, Keep, Gmail, or messaging apps.
+
+- **Visual Identity & Theme**:
+  - *Design System*: Follows Material 3 dark cosmic aesthetic with deep violet/navy container accents (`surfaceVariant` with primary glow borders).
+  - *Typography*: Clean display header paired with monospaced century metadata chips (`100-Year Life Horizon`, `Age 0 → 100`).
+  - *Iconography*: Material 3 `HistoryEdu`, `FileDownload`, and `AutoAwesome` vector icons with high-contrast accessibility tints.
+
+---
+
+### 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Annual Profection & Milestone Math vs. 36,525 Daily Calculations**
+  - *Chosen Approach*: Calculate exact planetary positions for each solar return year (101 reference points) and derive exact planetary return windows, rather than computing 36,500 individual daily transit charts.
+  - *Why*: Daily planetary calculations for 100 years would require tens of thousands of trigonometric calculations that could hitch the UI thread or cause battery drain. The annual profection + planetary return milestone architecture provides superior long-term astrological structure, instantaneous generation (<300ms), and clean Markdown organization.
+
+- **Decision 2: Native Android Document Picker (`CreateDocument`) + Intent Share**
+  - *Chosen Approach*: Use `ActivityResultContracts.CreateDocument("text/markdown")` with MIME fallback to `text/plain`, combined with a direct share launcher (`Intent.ACTION_SEND`).
+  - *Why*: Gives users complete ownership of their exported file, allowing them to choose exact folder locations, cloud backups, or direct export to markdown reading tools (Obsidian, Notion, iA Writer, etc.).
+
+- **Decision 3: Structured Markdown Hierarchy**
+  - *Chosen Approach*:
+    - **Header**: User details, birth coordinates, natal chart snapshot.
+    - **Part 1**: Lifelong Planetary Return Catalog (Saturn returns at ~29.5/59/88.5, Jupiter cycles every 12 years, Uranus opposition at ~42, Chiron return at ~50, Nodal returns at ~18.6/37.2/55.8/74.4/93).
+    - **Part 2**: Complete 100-Year Chronological Ledger grouped by 10-Year Decades (Ages 0–9, 10–19, ..., 90–100), listing each year's Age, Year, Profection House, Lord of the Year, and Milestone Events.
+    - **Part 3**: Astrological Reference Glossary for interpreting house activations and time lords.
+
+---
+
+### 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                              UI Layer                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ SettingsScreen (Data, Export & Backup Section)                   │  │
+│  │ • 100-Year Export Card with Century Scope Indicator              │  │
+│  │ • "Export 100-Year Dossier (.md)" button                         │  │
+│  │ • SAF Document Creator (`CreateDocument`) & Share Intent         │  │
+│  └──────────────────────────────────┬───────────────────────────────┘  │
+└─────────────────────────────────────┼──────────────────────────────────┘
+                                      ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                             View Model                                 │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ MainViewModel                                                    │  │
+│  │ • `generate100YearAstrologyReport(profile)`                      │  │
+│  │ • Background coroutine orchestration on `Dispatchers.Default`    │  │
+│  │ • State management for export progress and string delivery       │  │
+│  └──────────────────────────────────┬───────────────────────────────┘  │
+└─────────────────────────────────────┼──────────────────────────────────┘
+                                      ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                       Domain & Calculation Layer                       │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ PlanetCalculator & AstrologyTimelineGenerator                    │  │
+│  │ • Natal baseline position calculation                            │  │
+│  │ • Hellenistic Annual Profection engine (House 1-12 cyclic cycle) │  │
+│  │ • Traditional & Modern planetary rulership mappings              │  │
+│  │ • Exact Planetary Return milestone calculators:                 │  │
+│  │   - Saturn (~29.45 years), Jupiter (~11.86 years)                │  │
+│  │   - Uranus opposition (~42 years), Chiron (~50.7 years)          │  │
+│  │   - Lunar Nodes (~18.61 years)                                   │  │
+│  │ • Comprehensive Markdown template synthesizer                    │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Key Entities & State**:
+  - `ProfectionYearInfo`: Data class holding `age: Int`, `calendarYear: Int`, `houseNumber: Int`, `sign: String`, `timeLord: String`, and `milestones: List<String>`.
+  - `LifeMilestone`: Data class holding `ageApprox: Double`, `yearApprox: Int`, `title: String`, `description: String`, and `category: MilestoneCategory`.
+  - `CenturyExportState`: Sealed class (`Idle`, `Generating`, `Ready(val content: String)`, `Error(val message: String)`).
+
+- **Interactive Component & State Mapping**:
+  - `SettingsScreen`: Observes `UserProfile`. When export is tapped, launches viewModel method; upon receiving markdown text, triggers `CreateDocument("text/markdown")`.
+  - Content streaming: Resolves output stream via `context.contentResolver.openOutputStream(uri)` and flushes the generated Markdown bytes with UTF-8 encoding.

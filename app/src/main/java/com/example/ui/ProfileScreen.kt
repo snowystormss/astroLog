@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Stars
+import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +31,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.*
 import com.example.ui.components.HoroscopeCard
+import com.example.ui.components.PlanetVectorIcon
+import com.example.ui.components.ElementVectorIcon
+import com.example.ui.components.ModalityVectorIcon
+import com.example.ui.components.DignityBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -527,10 +533,10 @@ fun ElementalModalityCard(balance: ElementalBalance) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ElementProgressChip(name = "Fire 🔥", pct = balance.fire, color = Color(0xFFE53935), modifier = Modifier.weight(1f))
-                ElementProgressChip(name = "Earth 🌿", pct = balance.earth, color = Color(0xFF43A047), modifier = Modifier.weight(1f))
-                ElementProgressChip(name = "Air 💨", pct = balance.air, color = Color(0xFF00ACC1), modifier = Modifier.weight(1f))
-                ElementProgressChip(name = "Water 💧", pct = balance.water, color = Color(0xFF1E88E5), modifier = Modifier.weight(1f))
+                ElementProgressChip(name = "Fire", pct = balance.fire, color = Color(0xFFE53935), modifier = Modifier.weight(1f))
+                ElementProgressChip(name = "Earth", pct = balance.earth, color = Color(0xFF43A047), modifier = Modifier.weight(1f))
+                ElementProgressChip(name = "Air", pct = balance.air, color = Color(0xFF00ACC1), modifier = Modifier.weight(1f))
+                ElementProgressChip(name = "Water", pct = balance.water, color = Color(0xFF1E88E5), modifier = Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -545,9 +551,9 @@ fun ElementalModalityCard(balance: ElementalBalance) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ModalityChip(name = "Cardinal ⚡", desc = "Initiating", pct = balance.cardinal, modifier = Modifier.weight(1f))
-                ModalityChip(name = "Fixed 💎", desc = "Steadfast", pct = balance.fixed, modifier = Modifier.weight(1f))
-                ModalityChip(name = "Mutable 🌀", desc = "Adaptable", pct = balance.mutable, modifier = Modifier.weight(1f))
+                ModalityChip(name = "Cardinal", desc = "Initiating", pct = balance.cardinal, modifier = Modifier.weight(1f))
+                ModalityChip(name = "Fixed", desc = "Steadfast", pct = balance.fixed, modifier = Modifier.weight(1f))
+                ModalityChip(name = "Mutable", desc = "Adaptable", pct = balance.mutable, modifier = Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -594,8 +600,10 @@ fun ElementProgressChip(name: String, pct: Int, color: Color, modifier: Modifier
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            ElementVectorIcon(element = name, modifier = Modifier.size(18.dp), tint = color)
             Spacer(modifier = Modifier.height(4.dp))
+            Text(text = name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Spacer(modifier = Modifier.height(2.dp))
             Text(text = "$pct%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = color)
         }
     }
@@ -613,6 +621,8 @@ fun ModalityChip(name: String, desc: String, pct: Int, modifier: Modifier = Modi
             modifier = Modifier.padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            ModalityVectorIcon(modality = name, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(text = name, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             Text(text = "$pct%", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text(text = desc, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
@@ -641,7 +651,12 @@ fun DispositorCard(dispositor: DispositorResult) {
 
             if (dispositor.finalDispositor != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "👑", fontSize = 18.sp)
+                    Icon(
+                        imageVector = Icons.Default.Stars,
+                        contentDescription = "Final Dispositor",
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier.size(20.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Final Dispositor: ${dispositor.finalDispositor} (rules all other planetary energies)",
@@ -656,7 +671,12 @@ fun DispositorCard(dispositor: DispositorResult) {
             if (dispositor.mutualReceptions.isNotEmpty()) {
                 dispositor.mutualReceptions.forEach { (p1, p2) ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "🔄", fontSize = 18.sp)
+                        Icon(
+                            imageVector = Icons.Default.SyncAlt,
+                            contentDescription = "Mutual Reception",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Mutual Reception: $p1 ↔ $p2 (planets empower each other's expressions)",
@@ -676,13 +696,6 @@ fun PlanetPlacementsList(
     partner: SavedProfile? = null,
     detailedPlanets: List<DetailedPlanetInfo> = emptyList()
 ) {
-    val glyphMap = mapOf(
-        "Sun" to "☉", "Moon" to "☽", "Mercury" to "☿", "Venus" to "♀",
-        "Mars" to "♂", "Jupiter" to "♃", "Saturn" to "♄", "Uranus" to "♅",
-        "Neptune" to "♆", "Pluto" to "♇", "North Node" to "☊", "South Node" to "☋",
-        "Chiron" to "⚷", "Lilith" to "⚸", "Part of Fortune" to "⊕", "Ascendant" to "ASC", "Midheaven" to "MC"
-    )
-
     if (detailedPlanets.isNotEmpty() && partner == null) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -694,7 +707,6 @@ fun PlanetPlacementsList(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 detailedPlanets.forEachIndexed { idx, item ->
-                    val glyph = glyphMap[item.name] ?: ""
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -703,13 +715,20 @@ fun PlanetPlacementsList(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1.3f)) {
-                            Text(
-                                text = glyph,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.width(28.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                PlanetVectorIcon(
+                                    planetName = item.name,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
                                     text = item.name,
@@ -732,13 +751,8 @@ fun PlanetPlacementsList(
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            when (item.dignity) {
-                                DignityType.DOMICILE -> Text("⭐ Domicile", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
-                                DignityType.EXALTATION -> Text("🔺 Exalted", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2196F3), fontWeight = FontWeight.Bold)
-                                DignityType.DETRIMENT -> Text("⚠️ Detriment", style = MaterialTheme.typography.labelSmall, color = Color(0xFFFF9800), fontWeight = FontWeight.Bold)
-                                DignityType.FALL -> Text("🔻 Fall", style = MaterialTheme.typography.labelSmall, color = Color(0xFFF44336), fontWeight = FontWeight.Bold)
-                                DignityType.PEREGRINE -> {}
-                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            DignityBadge(dignity = item.dignity)
                         }
                     }
                     if (idx < detailedPlanets.size - 1) {

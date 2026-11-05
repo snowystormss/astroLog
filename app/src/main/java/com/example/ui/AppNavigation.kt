@@ -118,7 +118,8 @@ fun AppNavigation(
                     viewModel = viewModel, 
                     profile = profile, 
                     onBack = { navController.popBackStack() },
-                    onNavigateToCodex = { navController.navigate("zodiac_codex") { launchSingleTop = true } }
+                    onNavigateToCodex = { navController.navigate("zodiac_codex") { launchSingleTop = true } },
+                    onNavigateToModelHub = { navController.navigate("model_hub") { launchSingleTop = true } }
                 ) 
             }
             composable("sync_settings") {
@@ -128,6 +129,11 @@ fun AppNavigation(
             }
             composable("zodiac_codex") {
                 ZodiacCodexScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("model_hub") {
+                OnDeviceModelHubScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
