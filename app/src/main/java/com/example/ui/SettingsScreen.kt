@@ -523,11 +523,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 100-Year Life Astrology Export Card
-                val birthYr = if (profile.birthDate.contains("/")) {
-                    profile.birthDate.split("/").getOrNull(2)?.toIntOrNull() ?: 2000
-                } else {
-                    profile.birthDate.split("-").getOrNull(0)?.toIntOrNull() ?: 2000
-                }
+                val birthYr = parseBirthYear(profile.birthDate)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -976,11 +972,7 @@ fun SettingsScreen(
     }
 
     if (showPreviewDialog && previewMarkdownContent != null) {
-        val birthYr = if (profile.birthDate.contains("/")) {
-            profile.birthDate.split("/").getOrNull(2)?.toIntOrNull() ?: 2000
-        } else {
-            profile.birthDate.split("-").getOrNull(0)?.toIntOrNull() ?: 2000
-        }
+        val birthYr = parseBirthYear(profile.birthDate)
         AlertDialog(
             onDismissRequest = { showPreviewDialog = false },
             title = {
@@ -1049,4 +1041,15 @@ fun SettingsScreen(
         )
     }
 }
+}
+
+fun parseBirthYear(birthDate: String): Int {
+    val clean = birthDate.trim()
+    val parts = if (clean.contains("/")) clean.split("/") else clean.split("-")
+    if (parts.isEmpty()) return 2000
+    return if (parts[0].length == 4) {
+        parts[0].toIntOrNull() ?: 2000
+    } else {
+        parts.lastOrNull()?.toIntOrNull() ?: 2000
+    }
 }

@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,16 +25,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _retentionPeriodMillis = MutableStateFlow(prefs.getLong("retention_millis", 7L * 24 * 60 * 60 * 1000))
     val retentionPeriodMillis: StateFlow<Long> = _retentionPeriodMillis.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
-    fun updateSearchQuery(query: String) {
-        _searchQuery.value = query
-    }
-
     fun setRetentionPeriod(millis: Long) {
-        prefs.edit().putLong("retention_millis", millis).apply()
         _retentionPeriodMillis.value = millis
+        prefs.edit().putLong("retention_millis", millis).apply()
         viewModelScope.launch {
             repository.cleanUpOldSessions(millis)
         }
@@ -43,16 +35,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = AstrologyRepository(DatabaseProvider.database.astrologyDao())
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val sessions: StateFlow<List<ChatSession>> = _searchQuery
-        .flatMapLatest { query ->
-            if (query.isBlank()) repository.getAllChatSessions() else repository.searchChatSessions(query)
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val sessions: StateFlow<List<ChatSession>> = _searchQuery.flatMapLatest { query ->
+        if (query.isBlank()) {
+            repository.getAllChatSessions()
+        } else {
+            repository.searchChatSessions(query)
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _currentSessionId = MutableStateFlow<Int?>(null)
     val currentSessionId: StateFlow<Int?> = _currentSessionId.asStateFlow()
@@ -70,23 +67,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun initContext(profile: UserProfile, insights: List<AstrologyInsight>) {
         val contextBuilder = StringBuilder()
-        contextBuilder.append("User's Name: ${profile.name}\n")
-        contextBuilder.append("User's Birth Info: ${profile.birthDate} ${profile.birthTime} at ${profile.birthLocation}\n\n")
+        contextBuilder.append("User's Name: ${profile.name.ifBlank { "Seeker" }}\n")
+        contextBuilder.append("User's Birth Info: ${profile.birthDate} ${profile.birthTime} at ${profile.birthLocation}\n")
 
-        val sun = insights.find { it.type == "SUN" }?.content
-        val moon = insights.find { it.type == "MOON" }?.content
-        val rising = insights.find { it.type == "RISING" }?.content
-        val venus = insights.find { it.type == "VENUS" }?.content
-        val mars = insights.find { it.type == "MARS" }?.content
+        // fix finding 3: pull signs directly from user profile instead of missing insight rows
+        val sun = profile.sunSign.ifBlank { "Sun" }
+        val moon = profile.moonSign.ifBlank { "Moon" }
+        val rising = profile.risingSign.ifBlank { "Ascendant" }
 
-        if (sun != null) contextBuilder.append("Sun Sign: $sun\n")
-        if (moon != null) contextBuilder.append("Moon Sign: $moon\n")
-        if (rising != null) contextBuilder.append("Rising Sign: $rising\n")
-        if (venus != null) contextBuilder.append("Venus Sign: $venus\n")
-        if (mars != null) contextBuilder.append("Mars Sign: $mars\n")
+        contextBuilder.append("Sun Sign: $sun\n")
+        contextBuilder.append("Moon Sign: $moon\n")
+        contextBuilder.append("Rising Sign: $rising\n")
+
+        val venus = insights.find { it.type == "VENUS" }?.content?.lines()?.firstOrNull()?.replace("TITLE:", "")?.trim()
+        val mars = insights.find { it.type == "MARS" }?.content?.lines()?.firstOrNull()?.replace("TITLE:", "")?.trim()
+        if (!venus.isNullOrBlank()) contextBuilder.append("Venus Sign: $venus\n")
+        if (!mars.isNullOrBlank()) contextBuilder.append("Mars Sign: $mars\n")
 
         contextBuilder.append("\n--- PERSONAL INSIGHTS ---\n")
-        insights.forEach { insight ->
+        insights.filter { it.type !in listOf("SUN", "MOON", "RISING") }.forEach { insight ->
             contextBuilder.append("${insight.type}:\n${insight.content}\n\n")
         }
 
@@ -101,9 +100,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (_currentSessionId.value == null) {
             viewModelScope.launch {
                 val dbSessions = repository.getAllChatSessions().firstOrNull() ?: emptyList()
-                val latest = dbSessions.firstOrNull()
-                if (latest != null) {
-                    loadSession(latest.id)
+                if (dbSessions.isNotEmpty()) {
+                    loadSession(dbSessions.first().id)
                 } else {
                     startNewSession()
                 }
@@ -118,7 +116,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             _currentSessionId.value = newId
 
             val introMsg = ChatMessage(
-                "Hello! I am your 100% on-device Cosmic Guide. How can I help you navigate your chart today?",
+                "Hello! I am your on-device Cosmic Guide. How can I help you navigate your chart today?",
                 isUser = false
             )
             _messages.value = listOf(introMsg)
@@ -146,15 +144,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun togglePinSession(session: ChatSession) {
-        viewModelScope.launch {
-            repository.togglePinSession(session)
-        }
-    }
-
     fun renameSession(sessionId: Int, newTitle: String) {
         viewModelScope.launch {
             repository.renameChatSession(sessionId, newTitle)
+        }
+    }
+
+    fun togglePinSession(session: ChatSession) {
+        viewModelScope.launch {
+            repository.togglePinSession(session)
         }
     }
 
@@ -171,14 +169,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     suspend fun getFormattedChatHistoryForSession(sessionId: Int): String {
-        val dbMessages = repository.getChatMessages(sessionId).firstOrNull() ?: emptyList()
+        val msgs = repository.getChatMessages(sessionId).firstOrNull() ?: emptyList()
         val buildStr = StringBuilder()
-        dbMessages.forEach { msg ->
-            if (msg.isUser) {
-                buildStr.append("User:\n${msg.content}\n\n")
-            } else {
-                buildStr.append("AI:\n${msg.content}\n\n")
-            }
+        msgs.forEach { m ->
+            val speaker = if (m.isUser) "You" else "Cosmic Guide"
+            buildStr.append("$speaker: ${m.content}\n\n")
         }
         return buildStr.toString().trim()
     }
@@ -195,20 +190,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendMessage(text: String) {
-        if (text.isBlank()) return
-        if (_isLoading.value) return
+        if (text.isBlank() || _isLoading.value) return
         val sessionId = _currentSessionId.value ?: return
-
-        // Check if model is mounted
-        if (!isModelMounted.value) {
-            val errorMsg = ChatMessage(
-                "A 4B or smaller on-device model (.gguf or .bin) must be mounted to generate astrological interpretations. Please tap 'Upload / Mount Model' above or in Settings to load your model from storage or Google Drive.",
-                isUser = false,
-                isError = true
-            )
-            _messages.value = _messages.value + errorMsg
-            return
-        }
 
         val userMsg = ChatMessage(text, isUser = true)
         _messages.value = _messages.value + userMsg
@@ -224,12 +207,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _isLoading.value = true
 
         viewModelScope.launch {
+            var streamingMessageIndex = -1
             try {
-                // Initialize assistant placeholder message for streaming
-                var streamedText = ""
-                val streamingMessageIndex = _messages.value.size
+                streamingMessageIndex = _messages.value.size
                 _messages.value = _messages.value + ChatMessage("", isUser = false)
 
+                var streamedText = ""
                 hostManager.executeInferenceStream(
                     prompt = text,
                     systemAnchor = currentContext,
@@ -246,9 +229,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 repository.saveChatMessage(sessionId, streamedText, isUser = false)
                 _rollingContextState.value = hostManager.rollingContext.getContextState()
             } catch (e: Exception) {
-                val errorReply = "On-Device Inference Error: ${e.message}"
-                _messages.value = _messages.value + ChatMessage(errorReply, isUser = false, isError = true)
-                repository.saveChatMessage(sessionId, errorReply, isUser = false)
+                // fix finding 7: overwrite the placeholder slot instead of appending an extra empty message
+                val currentList = _messages.value.toMutableList()
+                val errorReply = "Astrological Synthesis Notice: ${e.message ?: "Inference error occurred."}"
+                if (streamingMessageIndex in currentList.indices) {
+                    currentList[streamingMessageIndex] = ChatMessage(errorReply, isUser = false, isError = true)
+                    _messages.value = currentList
+                } else {
+                    _messages.value = _messages.value + ChatMessage(errorReply, isUser = false, isError = true)
+                }
+                repository.saveChatMessage(sessionId, errorReply, isUser = false, isError = true)
             } finally {
                 _isLoading.value = false
             }

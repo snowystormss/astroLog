@@ -13,8 +13,7 @@ object DatabaseProvider {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "astrolog_db"
-            ).fallbackToDestructiveMigration(dropAllTables = true)
-            .build()
+            ).build()
         }
     }
 }

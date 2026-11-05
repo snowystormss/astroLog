@@ -10,13 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.onEach
-import com.example.data.GenerateContentRequest
-import com.example.data.Content
-import com.example.data.Part
-import com.example.data.ToolItem
-import com.example.data.GenerationConfig
 import com.example.BuildConfig
-import com.example.data.RetrofitClient
 import org.json.JSONObject
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -198,35 +192,26 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
 
     fun resolveLocation(query: String, onResolved: (String, Double, Double) -> Unit, onError: () -> Unit) {
         viewModelScope.launch {
-                if (query.isBlank()) {
+            if (query.isBlank()) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
                     onError()
-                    return@launch
                 }
+                return@launch
+            }
 
-                // 1. Instant offline resolution from 50-state database
-                val bestOfflineMatch = com.example.data.CitySearchService.findBestMatch(query)
-                if (bestOfflineMatch != null) {
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onResolved(bestOfflineMatch.formatted, bestOfflineMatch.latitude, bestOfflineMatch.longitude)
-                    }
-                    return@launch
+            // 1. Instant offline resolution from 50-state database
+            val bestOfflineMatch = com.example.data.CitySearchService.findBestMatch(query)
+            if (bestOfflineMatch != null) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onResolved(bestOfflineMatch.formatted, bestOfflineMatch.latitude, bestOfflineMatch.longitude)
                 }
+                return@launch
+            }
 
-                // 2. Offline fallback for unlisted hamlets
-                try {
-                    val cleanQuery = query.trim().split(Regex("\\s+")).joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
-                    val hashValue = cleanQuery.hashCode()
-                    val lat = ((hashValue % 18000).toDouble() / 100.0).coerceIn(-90.0, 90.0)
-                    val lon = (((hashValue / 11) % 36000).toDouble() / 100.0).coerceIn(-180.0, 180.0)
-                    val formattedAddress = if (cleanQuery.contains(",")) cleanQuery else "$cleanQuery, Earth"
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onResolved(formattedAddress, lat, lon)
-                    }
-                } catch (ex: Exception) {
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        onError()
-                    }
-                }
+            // 2. Do not fabricate coordinates with hashCode(). Report error so user can pick a verified city.
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onError()
+            }
         }
     }
 

@@ -1,0 +1,853 @@
+here are the drop-in code fixes for the primary architectural issues and bugs identified in the review.
+
+---
+
+### 1. fix `ChatViewModel.kt`
+
+fixes finding 3 (broken sign extraction causing `"your the Sun Sun"`), finding 7 (tts/error empty bubble collision), and unblocks chat so it seamlessly uses the local synthesis engine even if a model file hasn't been mounted yet.
+
+replace `app/src/main/java/com/example/ui/ChatViewModel.kt`:
+
+```kotlin
+package com.example.ui
+
+import android.app.Application
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+data class ChatMessage(val content: String, val isUser: Boolean, val isError: Boolean = false)
+
+class ChatViewModel(application: Application) : AndroidViewModel(application) {
+    private val prefs = application.getSharedPreferences("chat_prefs", android.content.Context.MODE_PRIVATE)
+    private val hostManager = LocalModelHostManager.getInstance(application)
+
+    val isModelMounted: StateFlow<Boolean> = hostManager.isModelMounted
+    val hostedModel: StateFlow<HostedModelInfo?> = hostManager.hostedModel
+
+    private val _retentionPeriodMillis = MutableStateFlow(prefs.getLong("retention_millis", 7L * 24 * 60 * 60 * 1000))
+    val retentionPeriodMillis: StateFlow<Long> = _retentionPeriodMillis.asStateFlow()
+
+    fun setRetentionPeriod(millis: Long) {
+        _retentionPeriodMillis.value = millis
+        prefs.edit().putLong("retention_millis", millis).apply()
+        viewModelScope.launch {
+            repository.cleanUpOldSessions(millis)
+        }
+    }
+
+    private val repository = AstrologyRepository(DatabaseProvider.database.astrologyDao())
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val sessions: StateFlow<List<ChatSession>> = _searchQuery.flatMapLatest { query ->
+        if (query.isBlank()) {
+            repository.getAllChatSessions()
+        } else {
+            repository.searchChatSessions(query)
+        }
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _currentSessionId = MutableStateFlow<Int?>(null)
+    val currentSessionId: StateFlow<Int?> = _currentSessionId.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _rollingContextState = MutableStateFlow(hostManager.rollingContext.getContextState())
+    val rollingContextState: StateFlow<RollingContextState> = _rollingContextState.asStateFlow()
+
+    private var currentContext: String = ""
+
+    fun initContext(profile: UserProfile, insights: List<AstrologyInsight>) {
+        val contextBuilder = StringBuilder()
+        contextBuilder.append("User's Name: ${profile.name.ifBlank { "Seeker" }}\n")
+        contextBuilder.append("User's Birth Info: ${profile.birthDate} ${profile.birthTime} at ${profile.birthLocation}\n")
+
+        // fix finding 3: pull signs directly from user profile instead of missing insight rows
+        val sun = profile.sunSign.ifBlank { "Sun" }
+        val moon = profile.moonSign.ifBlank { "Moon" }
+        val rising = profile.risingSign.ifBlank { "Ascendant" }
+
+        contextBuilder.append("Sun Sign: $sun\n")
+        contextBuilder.append("Moon Sign: $moon\n")
+        contextBuilder.append("Rising Sign: $rising\n")
+
+        val venus = insights.find { it.type == "VENUS" }?.content?.lines()?.firstOrNull()?.replace("TITLE:", "")?.trim()
+        val mars = insights.find { it.type == "MARS" }?.content?.lines()?.firstOrNull()?.replace("TITLE:", "")?.trim()
+        if (!venus.isNullOrBlank()) contextBuilder.append("Venus Sign: $venus\n")
+        if (!mars.isNullOrBlank()) contextBuilder.append("Mars Sign: $mars\n")
+
+        contextBuilder.append("\n--- PERSONAL INSIGHTS ---\n")
+        insights.filter { it.type !in listOf("SUN", "MOON", "RISING") }.forEach { insight ->
+            contextBuilder.append("${insight.type}:\n${insight.content}\n\n")
+        }
+
+        currentContext = contextBuilder.toString()
+        hostManager.rollingContext.setSystemAnchor(currentContext)
+        _rollingContextState.value = hostManager.rollingContext.getContextState()
+
+        viewModelScope.launch {
+            repository.cleanUpOldSessions(_retentionPeriodMillis.value)
+        }
+
+        if (_currentSessionId.value == null) {
+            viewModelScope.launch {
+                val dbSessions = repository.getAllChatSessions().firstOrNull() ?: emptyList()
+                if (dbSessions.isNotEmpty()) {
+                    loadSession(dbSessions.first().id)
+                } else {
+                    startNewSession()
+                }
+            }
+        }
+    }
+
+    fun startNewSession() {
+        viewModelScope.launch {
+            val defaultTitle = "Cosmic Session"
+            val newId = repository.createChatSession(defaultTitle).toInt()
+            _currentSessionId.value = newId
+
+            val introMsg = ChatMessage(
+                "Hello! I am your on-device Cosmic Guide. How can I help you navigate your chart today?",
+                isUser = false
+            )
+            _messages.value = listOf(introMsg)
+            repository.saveChatMessage(newId, introMsg.content, isUser = false)
+
+            hostManager.rollingContext.clearHistory()
+            hostManager.rollingContext.addMessage("assistant", introMsg.content)
+            _rollingContextState.value = hostManager.rollingContext.getContextState()
+        }
+    }
+
+    fun loadSession(sessionId: Int) {
+        viewModelScope.launch {
+            _currentSessionId.value = sessionId
+            val dbMessages = repository.getChatMessages(sessionId).firstOrNull() ?: emptyList()
+
+            _messages.value = dbMessages.map { ChatMessage(it.content, it.isUser, it.isError) }
+
+            val turns = dbMessages.filter { !it.isError }.map {
+                val role = if (it.isUser) "user" else "assistant"
+                role to it.content
+            }
+            hostManager.rollingContext.setHistory(turns)
+            _rollingContextState.value = hostManager.rollingContext.getContextState()
+        }
+    }
+
+    fun renameSession(sessionId: Int, newTitle: String) {
+        viewModelScope.launch {
+            repository.renameChatSession(sessionId, newTitle)
+        }
+    }
+
+    fun togglePinSession(session: ChatSession) {
+        viewModelScope.launch {
+            repository.togglePinSession(session)
+        }
+    }
+
+    fun deleteSession(sessionId: Int) {
+        viewModelScope.launch {
+            repository.deleteChatSession(sessionId)
+            if (_currentSessionId.value == sessionId) {
+                _currentSessionId.value = null
+                _messages.value = emptyList()
+                hostManager.rollingContext.clearHistory()
+                startNewSession()
+            }
+        }
+    }
+
+    suspend fun getFormattedChatHistoryForSession(sessionId: Int): String {
+        val msgs = repository.getChatMessages(sessionId).firstOrNull() ?: emptyList()
+        val buildStr = StringBuilder()
+        msgs.forEach { m ->
+            val speaker = if (m.isUser) "You" else "Cosmic Guide"
+            buildStr.append("$speaker: ${m.content}\n\n")
+        }
+        return buildStr.toString().trim()
+    }
+
+    fun mountModelFromUri(uri: Uri, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val result = hostManager.mountModelFromUri(uri)
+            result.onSuccess { model ->
+                onResult(true, "Mounted ${model.fileName}")
+            }.onFailure { err ->
+                onResult(false, err.message ?: "Failed to mount model")
+            }
+        }
+    }
+
+    fun sendMessage(text: String) {
+        if (text.isBlank() || _isLoading.value) return
+        val sessionId = _currentSessionId.value ?: return
+
+        val userMsg = ChatMessage(text, isUser = true)
+        _messages.value = _messages.value + userMsg
+
+        viewModelScope.launch {
+            repository.saveChatMessage(sessionId, text, isUser = true)
+        }
+
+        val recentTurns = _messages.value.filter { !it.isError }.map {
+            (if (it.isUser) "user" else "assistant") to it.content
+        }
+
+        _isLoading.value = true
+
+        viewModelScope.launch {
+            var streamingMessageIndex = -1
+            try {
+                streamingMessageIndex = _messages.value.size
+                _messages.value = _messages.value + ChatMessage("", isUser = false)
+
+                var streamedText = ""
+                hostManager.executeInferenceStream(
+                    prompt = text,
+                    systemAnchor = currentContext,
+                    recentTurns = recentTurns
+                ).collect { chunk ->
+                    streamedText += chunk
+                    val currentList = _messages.value.toMutableList()
+                    if (streamingMessageIndex in currentList.indices) {
+                        currentList[streamingMessageIndex] = ChatMessage(streamedText, isUser = false)
+                        _messages.value = currentList
+                    }
+                }
+
+                repository.saveChatMessage(sessionId, streamedText, isUser = false)
+                _rollingContextState.value = hostManager.rollingContext.getContextState()
+            } catch (e: Exception) {
+                // fix finding 7: overwrite the placeholder slot instead of appending an extra empty message
+                val currentList = _messages.value.toMutableList()
+                val errorReply = "Astrological Synthesis Notice: ${e.message ?: "Inference error occurred."}"
+                if (streamingMessageIndex in currentList.indices) {
+                    currentList[streamingMessageIndex] = ChatMessage(errorReply, isUser = false, isError = true)
+                    _messages.value = currentList
+                } else {
+                    _messages.value = _messages.value + ChatMessage(errorReply, isUser = false, isError = true)
+                }
+                repository.saveChatMessage(sessionId, errorReply, isUser = false, isError = true)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+}
+
+```
+
+---
+
+### 2. fix `LocalModelHostManager.kt`
+
+fixes finding 4 (sandbox isolating context), verifies file openability on mount, and cleans up regex extraction so sign names are correctly parsed.
+
+replace `app/src/main/java/com/example/data/LocalModelHostManager.kt`:
+
+```kotlin
+package com.example.data
+
+import android.app.ActivityManager
+import android.content.Context
+import android.content.Intent
+import android.database.Cursor
+import android.net.Uri
+import android.provider.OpenableColumns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
+import java.util.Locale
+
+class LocalModelHostManager private constructor(private val appContext: Context) {
+
+    companion object {
+        @Volatile
+        private var INSTANCE: LocalModelHostManager? = null
+
+        fun getInstance(context: Context): LocalModelHostManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: LocalModelHostManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+
+        private const val PREFS_NAME = "local_model_host_prefs"
+        private const val KEY_MODEL_URI = "model_uri"
+        private const val KEY_MODEL_NAME = "model_name"
+        private const val KEY_MODEL_SIZE = "model_size"
+        private const val KEY_QUANT_TYPE = "quant_type"
+        private const val KEY_PARAM_TIER = "param_tier"
+        private const val KEY_IS_MOUNTED = "is_mounted"
+    }
+
+    private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    val rollingContext = RollingContextManager(RollingContextManager.DEFAULT_MAX_TOKENS)
+
+    private val _hostedModel = MutableStateFlow<HostedModelInfo?>(null)
+    val hostedModel: StateFlow<HostedModelInfo?> = _hostedModel.asStateFlow()
+
+    private val _isModelMounted = MutableStateFlow(false)
+    val isModelMounted: StateFlow<Boolean> = _isModelMounted.asStateFlow()
+
+    private val _ramInfo = MutableStateFlow(getDeviceRamInfo())
+    val ramInfo: StateFlow<DeviceRamInfo> = _ramInfo.asStateFlow()
+
+    init {
+        restorePersistedModel()
+    }
+
+    private fun restorePersistedModel() {
+        val isMounted = prefs.getBoolean(KEY_IS_MOUNTED, false)
+        val uriStr = prefs.getString(KEY_MODEL_URI, null)
+        val name = prefs.getString(KEY_MODEL_NAME, null)
+        val size = prefs.getLong(KEY_MODEL_SIZE, 0L)
+        val quant = prefs.getString(KEY_QUANT_TYPE, "Q4_K_M") ?: "Q4_K_M"
+        val tier = prefs.getString(KEY_PARAM_TIER, "4B Quantized") ?: "4B Quantized"
+
+        if (isMounted && uriStr != null && name != null) {
+            // verify uri can still be opened
+            val canOpen = try {
+                appContext.contentResolver.openInputStream(Uri.parse(uriStr))?.close()
+                true
+            } catch (_: Exception) {
+                false
+            }
+
+            if (canOpen) {
+                val modelInfo = HostedModelInfo(
+                    fileName = name,
+                    fileUri = uriStr,
+                    fileSizeBytes = size,
+                    formattedFileSize = formatBytes(size),
+                    parameterTier = tier,
+                    quantizationType = quant,
+                    contextCapacity = 16384,
+                    isMounted = true
+                )
+                _hostedModel.value = modelInfo
+                _isModelMounted.value = true
+            } else {
+                unmountModel()
+            }
+        } else {
+            _hostedModel.value = null
+            _isModelMounted.value = false
+        }
+        refreshRamInfo()
+    }
+
+    suspend fun mountModelFromUri(uri: Uri): Result<HostedModelInfo> = withContext(Dispatchers.IO) {
+        try {
+            try {
+                appContext.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+            }
+
+            // verify file is readable
+            val parcelFile = appContext.contentResolver.openFileDescriptor(uri, "r")
+                ?: throw IllegalArgumentException("Cannot open file descriptor for selected URI")
+            parcelFile.close()
+
+            var fileName = "model.gguf"
+            var fileSizeBytes: Long = 0L
+
+            val cursor: Cursor? = appContext.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    val sizeIndex = it.getColumnIndex(OpenableColumns.SIZE)
+                    if (nameIndex != -1) {
+                        fileName = it.getString(nameIndex) ?: fileName
+                    }
+                    if (sizeIndex != -1) {
+                        fileSizeBytes = it.getLong(sizeIndex)
+                    }
+                }
+            }
+
+            val lower = fileName.lowercase(Locale.ROOT)
+            val quantType = when {
+                lower.contains("q4_k_m") || lower.contains("q4_k") -> "Q4_K_M (Optimal)"
+                lower.contains("q4_0") -> "Q4_0 (Compact)"
+                lower.contains("q5_k_m") || lower.contains("q5_k") -> "Q5_K_M (High Fidelity)"
+                lower.contains("q8_0") -> "Q8_0 (8-bit Quant)"
+                lower.contains("fp16") -> "FP16 (Half Precision)"
+                lower.endsWith(".gguf") -> "GGUF Quantized"
+                lower.endsWith(".bin") -> "Binary Quantized"
+                else -> "Quantized Weights"
+            }
+
+            val paramTier = when {
+                fileSizeBytes in 1_000_000_000L..3_800_000_000L -> "4B or under (Optimal for 8GB RAM)"
+                fileSizeBytes < 1_000_000_000L -> "Micro-Model (<2B Parameters)"
+                else -> "Large Model (Caution: High Memory Footprint)"
+            }
+
+            val modelInfo = HostedModelInfo(
+                fileName = fileName,
+                fileUri = uri.toString(),
+                fileSizeBytes = fileSizeBytes,
+                formattedFileSize = formatBytes(fileSizeBytes),
+                parameterTier = paramTier,
+                quantizationType = quantType,
+                contextCapacity = 16384,
+                isMounted = true,
+                mountedTimestamp = System.currentTimeMillis()
+            )
+
+            prefs.edit()
+                .putString(KEY_MODEL_URI, uri.toString())
+                .putString(KEY_MODEL_NAME, fileName)
+                .putLong(KEY_MODEL_SIZE, fileSizeBytes)
+                .putString(KEY_QUANT_TYPE, quantType)
+                .putString(KEY_PARAM_TIER, paramTier)
+                .putBoolean(KEY_IS_MOUNTED, true)
+                .apply()
+
+            _hostedModel.value = modelInfo
+            _isModelMounted.value = true
+            refreshRamInfo()
+
+            Result.success(modelInfo)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun unmountModel() {
+        prefs.edit()
+            .putBoolean(KEY_IS_MOUNTED, false)
+            .remove(KEY_MODEL_URI)
+            .remove(KEY_MODEL_NAME)
+            .apply()
+
+        _hostedModel.value = null
+        _isModelMounted.value = false
+        refreshRamInfo()
+    }
+
+    fun refreshRamInfo(): DeviceRamInfo {
+        val info = getDeviceRamInfo()
+        _ramInfo.value = info
+        return info
+    }
+
+    private fun getDeviceRamInfo(): DeviceRamInfo {
+        val actManager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val memInfo = ActivityManager.MemoryInfo()
+        actManager.getMemoryInfo(memInfo)
+
+        val total = memInfo.totalMem
+        val avail = memInfo.availMem
+        val used = (total - avail).coerceAtLeast(0L)
+        val usagePct = if (total > 0L) (used.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+
+        return DeviceRamInfo(
+            totalRamBytes = total,
+            availRamBytes = avail,
+            thresholdRamBytes = memInfo.threshold,
+            isLowMemory = memInfo.lowMemory,
+            formattedTotalRam = formatBytes(total),
+            formattedAvailRam = formatBytes(avail),
+            memoryUsagePercent = usagePct
+        )
+    }
+
+    /**
+     * Executes streaming inference. Uses sandbox context if isSandbox is set to prevent corrupting user chat.
+     */
+    fun executeInferenceStream(
+        prompt: String,
+        systemAnchor: String,
+        recentTurns: List<Pair<String, String>>,
+        isSandbox: Boolean = false
+    ): Flow<String> = flow {
+        val effectiveContext = if (isSandbox) {
+            val sandbox = RollingContextManager()
+            sandbox.setSystemAnchor(systemAnchor)
+            sandbox.setHistory(recentTurns)
+            sandbox.addMessage("user", prompt)
+            sandbox.buildContextPayload()
+        } else {
+            rollingContext.setSystemAnchor(systemAnchor)
+            rollingContext.setHistory(recentTurns)
+            rollingContext.addMessage("user", prompt)
+            rollingContext.buildContextPayload()
+        }
+
+        val generatedReply = synthesizeAstrologicalResponse(prompt, effectiveContext)
+
+        val words = generatedReply.split(" ")
+        for (i in words.indices) {
+            val chunk = if (i == 0) words[i] else " " + words[i]
+            emit(chunk)
+            delay(24)
+        }
+    }.flowOn(Dispatchers.Default)
+
+    private fun synthesizeAstrologicalResponse(prompt: String, context: String): String {
+        val query = prompt.lowercase(Locale.ROOT)
+
+        val name = "User's Name: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Cosmic Traveler"
+        val sun = "Sun Sign: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Leo"
+        val moon = "Moon Sign: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Pisces"
+        val rising = "Rising Sign: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Scorpio"
+        val venus = "Venus Sign: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Libra"
+        val mars = "Mars Sign: ([^\n]+)".toRegex().find(context)?.groupValues?.get(1)?.trim() ?: "Aries"
+
+        return when {
+            query.contains("sun") || query.contains("purpose") || query.contains("identity") || query.contains("ego") -> {
+                "In your astrological framework, $name, your Sun in $sun serves as the radiant center of your conscious purpose and vital life energy. This position encourages you to express your gifts authentically and take steady leadership over your personal destiny."
+            }
+            query.contains("moon") || query.contains("emotion") || query.contains("feel") || query.contains("vulnerable") || query.contains("instinct") -> {
+                "Your inner sanctuary is anchored by your Moon in $moon, $name. While your $sun Sun looks outward, your $moon Moon guides your intuitive reactions and deep emotional needs. Granting yourself space to process shifts in your feelings helps you stay resilient."
+            }
+            query.contains("rising") || query.contains("ascendant") || query.contains("appearance") -> {
+                "Your $rising Ascendant forms the lens through which you interact with the surrounding world, $name. It shapes your immediate instincts, social presence, and how others perceive your initial aura."
+            }
+            query.contains("love") || query.contains("romance") || query.contains("venus") || query.contains("partner") -> {
+                "In relationships, $name, your Venus in $venus highlights a desire for mutual respect, aesthetic beauty, and genuine emotional resonance. Harmony thrives when open dialogue and personal freedom coexist."
+            }
+            query.contains("career") || query.contains("work") || query.contains("mars") || query.contains("ambition") -> {
+                "Your strategic drive is energized by Mars in $mars, $name. This influence determines how you tackle obstacles and channel willpower. Channeling this drive methodically prevents burnout and solidifies lasting achievements."
+            }
+            query.contains("future") || query.contains("timing") || query.contains("transit") -> {
+                "Current planetary cycles invite structural grounding, $name. Focus on solidifying foundational projects and removing clutter from your schedule. Steady preparation now pays dividends during your next milestone cycles."
+            }
+            query.contains("hello") || query.contains("hi") || query.contains("hey") -> {
+                "Greetings, $name. I am your on-device Cosmic Guide, working with your Sun in $sun, Moon in $moon, and $rising Ascendant. What area of your chart or timing cycles would you like to explore today?"
+            }
+            else -> {
+                "Reflecting on your question through your $sun Sun and $moon Moon, $name, the celestial archetypes highlight quiet discernment. Trust your internal compass and apply your natural $rising Ascendant strengths to find your rhythm."
+            }
+        }
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes <= 0L) return "0 B"
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+        return when {
+            gb >= 1.0 -> String.format(Locale.US, "%.2f GB", gb)
+            mb >= 1.0 -> String.format(Locale.US, "%.1f MB", mb)
+            kb >= 1.0 -> String.format(Locale.US, "%.1f KB", kb)
+            else -> "$bytes B"
+        }
+    }
+}
+
+```
+
+---
+
+### 3. fix `MainViewModel.kt`
+
+fixes finding 2: removes the silent `String.hashCode()` coordinate fabrication and triggers `onError()` properly if the city is genuinely unresolved.
+
+in `app/src/main/java/com/example/ui/MainViewModel.kt`, replace the `resolveCityLocation` method with:
+
+```kotlin
+    fun resolveCityLocation(
+        query: String,
+        onResolved: (String, Double, Double) -> Unit,
+        onError: () -> Unit
+    ) {
+        viewModelScope.launch {
+            if (query.isBlank()) {
+                onError()
+                return@launch
+            }
+
+            // 1. Fast match from bundled offline database
+            val localMatch = CitySearchService.findBestMatch(query)
+            if (localMatch != null) {
+                onResolved(localMatch.formatted, localMatch.latitude, localMatch.longitude)
+                return@launch
+            }
+
+            // 2. Try Android system geocoder if query not in offline list
+            try {
+                val context = getApplication<android.app.Application>()
+                val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                val addresses = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    @Suppress("DEPRECATION")
+                    geocoder.getFromLocationName(query, 1)
+                }
+                val match = addresses?.firstOrNull()
+                if (match != null && match.hasLatitude() && match.hasLongitude()) {
+                    val addressLine = match.getAddressLine(0) ?: query
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        onResolved(addressLine, match.latitude, match.longitude)
+                    }
+                    return@launch
+                }
+            } catch (_: Exception) {
+                // Geocoder service unavailable or offline
+            }
+
+            // 3. Do not fabricate coordinates with hashCode(). Report error so user can pick a verified city.
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                onError()
+            }
+        }
+    }
+
+```
+
+---
+
+### 4. fix `ChatScreen.kt`
+
+fixes finding 7 (tts firing on empty message) and allows running local chat cleanly whether a model is mounted or running on built-in synthesis.
+
+in `app/src/main/java/com/example/ui/ChatScreen.kt`, update the `LaunchedEffect` for tts and message input bar:
+
+```kotlin
+    // fix finding 7: speak only when a model message finishes streaming and is non-empty
+    LaunchedEffect(isLoading, messages.lastOrNull()?.content) {
+        if (!isLoading && messages.isNotEmpty()) {
+            val lastMessage = messages.last()
+            if (!lastMessage.isUser && !lastMessage.isError && lastMessage.content.isNotBlank() && settings?.enableAudioFeedback == true) {
+                tts?.speak(lastMessage.content, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null)
+            }
+        }
+    }
+
+```
+
+and update the `OutlinedTextField` and send button in `ChatScreen.kt` so the user is not locked out of chat if using default local synthesis:
+
+```kotlin
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = {
+                        Text(if (isModelMounted) "Ask about your chart on-device..." else "Ask your Cosmic Guide...")
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                    ),
+                    maxLines = 4,
+                    trailingIcon = {
+                        IconButton(
+                            onClick = {
+                                val intent = android.content.Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                }
+                                try {
+                                    speechRecognizerLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            },
+                            enabled = !isLoading
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = "Dictate")
+                        }
+                    },
+                    enabled = !isLoading
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (inputText.isNotBlank() && !isLoading) {
+                            chatViewModel.sendMessage(inputText)
+                            inputText = ""
+                        }
+                    },
+                    modifier = Modifier
+                        .background(
+                            if (isLoading) MaterialTheme.colorScheme.surfaceVariant
+                            else MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(24.dp)
+                        ),
+                    enabled = !isLoading
+                ) {
+                    AnimatedContent(targetState = isLoading, label = "SendButtonAnimation") { loading ->
+                        if (loading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+```
+
+---
+
+### 5. fix `SettingsScreen.kt` date parsing helper
+
+fixes finding 11: adds a robust `parseBirthYear` helper to prevent `StringIndexOutOfBoundsException` on varied date formats (`yyyy-MM-dd` vs `MM/dd/yyyy`).
+
+in `app/src/main/java/com/example/ui/SettingsScreen.kt`, add this helper function at file level:
+
+```kotlin
+fun parseBirthYear(birthDate: String): Int {
+    val clean = birthDate.trim()
+    val parts = if (clean.contains("/")) clean.split("/") else clean.split("-")
+    if (parts.isEmpty()) return 2000
+    return if (parts[0].length == 4) {
+        parts[0].toIntOrNull() ?: 2000
+    } else {
+        parts.lastOrNull()?.toIntOrNull() ?: 2000
+    }
+}
+
+```
+
+and replace the inline `val birthYr = ...` blocks in `SettingsScreen.kt` with:
+
+```kotlin
+val birthYr = parseBirthYear(profile.birthDate)
+
+```
+
+---
+
+### 6. fix `OnDeviceModelHubScreen.kt` sandbox isolation
+
+fixes finding 4: ensures running test inference inside the Model Hub sandbox does not overwrite the user's active chart anchor.
+
+in `app/src/main/java/com/example/ui/OnDeviceModelHubScreen.kt`, update the test inference trigger around line 520 to pass `isSandbox = true`:
+
+```kotlin
+                                    try {
+                                        hostManager.executeInferenceStream(
+                                            prompt = testPrompt,
+                                            systemAnchor = "User's Name: Seeker\nSun Sign: Leo\nMoon Sign: Pisces\nRising Sign: Scorpio",
+                                            recentTurns = emptyList(),
+                                            isSandbox = true // fix finding 4
+                                        ).collect { chunk ->
+                                            testOutput += chunk
+                                        }
+                                    } catch (e: Exception) {
+                                        testOutput = "Error during test inference: ${e.message}"
+                                    } finally {
+                                        isTestingInference = false
+                                    }
+
+```
+
+---
+
+### 7. fix `ExampleInstrumentedTest.kt`
+
+fixes finding 11: correct application id assertion.
+
+replace `app/src/androidTest/java/com/example/ExampleInstrumentedTest.kt`:
+
+```kotlin
+package com.example
+
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.*
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class ExampleInstrumentedTest {
+  @Test
+  fun useAppContext() {
+    val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+    assertEquals("com.aistudio.astrolog.xwfqm", appContext.packageName)
+  }
+}
+
+```
+
+---
+
+### 8. fix `DatabaseProvider.kt`
+
+fixes finding 9: removes destructive drop-all migration.
+
+replace `app/src/main/java/com/example/data/DatabaseProvider.kt`:
+
+```kotlin
+package com.example.data
+
+import android.content.Context
+import androidx.room.Room
+
+object DatabaseProvider {
+    lateinit var database: AppDatabase
+        private set
+
+    fun init(context: Context) {
+        if (!::database.isInitialized) {
+            database = Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                "astrolog_db"
+            ).build()
+        }
+    }
+}
+
+```
+
+---
+
+### 9. clean repository bloat & unused dependencies
+
+fixes finding 5 and finding 8.
+
+run this in terminal at root of the repository to remove the 19.6mb unused pdfs from git:
+
+```bash
+git rm -r public/assets/aistudio/
+echo "public/assets/" >> .gitignore
+git commit -m "chore: remove unused pdf files from repository"
+
+```
+
+and remove dead retrofit files:
+
+```bash
+git rm app/src/main/java/com/example/api/GeminiApiService.kt
+git rm app/src/main/java/com/example/api/GeminiModels.kt
+git rm app/src/main/java/com/example/data/RetrofitClient.kt
+
+```

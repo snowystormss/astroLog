@@ -521,7 +521,8 @@ fun OnDeviceModelHubScreen(
                                         hostManager.executeInferenceStream(
                                             prompt = testPrompt,
                                             systemAnchor = "User's Name: Seeker\nSun Sign: Leo\nMoon Sign: Pisces\nRising Sign: Scorpio",
-                                            recentTurns = emptyList()
+                                            recentTurns = emptyList(),
+                                            isSandbox = true // fix finding 4
                                         ).collect { chunk ->
                                             testOutput += chunk
                                         }

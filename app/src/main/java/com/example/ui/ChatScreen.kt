@@ -79,19 +79,12 @@ fun ChatScreen(
     var lastSpokenSessionId by remember { mutableIntStateOf(-1) }
     var lastSpokenMessageSize by remember { mutableIntStateOf(-1) }
 
-    LaunchedEffect(messages, currentSessionId) {
-        if (lastSpokenSessionId != currentSessionId) {
-            lastSpokenSessionId = currentSessionId ?: -1
-            lastSpokenMessageSize = messages.size
-        } else {
-            if (messages.size > lastSpokenMessageSize) {
-                val lastMessage = messages.lastOrNull()
-                if (lastMessage != null && !lastMessage.isUser && !lastMessage.isError && settings?.enableAudioFeedback == true) {
-                    tts?.speak(lastMessage.content, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null)
-                }
-                lastSpokenMessageSize = messages.size
-            } else if (messages.size < lastSpokenMessageSize) {
-                lastSpokenMessageSize = messages.size
+    // fix finding 7: speak only when a model message finishes streaming and is non-empty
+    LaunchedEffect(isLoading, messages.lastOrNull()?.content) {
+        if (!isLoading && messages.isNotEmpty()) {
+            val lastMessage = messages.last()
+            if (!lastMessage.isUser && !lastMessage.isError && lastMessage.content.isNotBlank() && settings?.enableAudioFeedback == true) {
+                tts?.speak(lastMessage.content, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null)
             }
         }
     }
@@ -521,13 +514,13 @@ fun ChatScreen(
                     value = inputText,
                     onValueChange = { inputText = it },
                     placeholder = {
-                        Text(if (isModelMounted) "Ask about your chart on-device..." else "Mount 4B model to chat...")
+                        Text(if (isModelMounted) "Ask about your chart on-device..." else "Ask your Cosmic Guide...")
                     },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                     ),
                     maxLines = 4,
                     trailingIcon = {
@@ -542,28 +535,28 @@ fun ChatScreen(
                                     e.printStackTrace()
                                 }
                             },
-                            enabled = isModelMounted && !isLoading
+                            enabled = !isLoading
                         ) {
                             Icon(Icons.Default.Mic, contentDescription = "Dictate")
                         }
                     },
-                    enabled = !isLoading && isModelMounted
+                    enabled = !isLoading
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = {
-                        if (inputText.isNotBlank() && !isLoading && isModelMounted) {
+                        if (inputText.isNotBlank() && !isLoading) {
                             chatViewModel.sendMessage(inputText)
                             inputText = ""
                         }
                     },
                     modifier = Modifier
                         .background(
-                            if (isLoading || !isModelMounted) MaterialTheme.colorScheme.surfaceVariant
+                            if (isLoading) MaterialTheme.colorScheme.surfaceVariant
                             else MaterialTheme.colorScheme.primaryContainer,
                             shape = RoundedCornerShape(24.dp)
                         ),
-                    enabled = !isLoading && isModelMounted
+                    enabled = !isLoading
                 ) {
                     AnimatedContent(targetState = isLoading, label = "SendButtonAnimation") { loading ->
                         if (loading) {
@@ -572,7 +565,7 @@ fun ChatScreen(
                             Icon(
                                 Icons.AutoMirrored.Filled.Send,
                                 contentDescription = "Send",
-                                tint = if (isModelMounted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
