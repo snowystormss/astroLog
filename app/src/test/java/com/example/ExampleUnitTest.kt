@@ -334,4 +334,74 @@ class ExampleUnitTest {
         assertTrue(markdown.contains("URANUS RETURN"))
         assertTrue(markdown.contains("Jupiter Return"))
     }
+
+    @Test
+    fun testTimezoneAndDstUtcCalculation() {
+        // Chicago: Standard time (Jan) is UTC-6, Daylight time (July) is UTC-5
+        val winterUtc = com.example.util.TimezoneHelper.getUtcHour(
+            year = 2024, month = 1, day = 15, localHour = 12.0,
+            latitude = 41.8781, longitude = -87.6298
+        )
+        // 12.0 CST + 6h = 18.0 UTC
+        assertEquals(18.0, winterUtc, 0.1)
+
+        val summerUtc = com.example.util.TimezoneHelper.getUtcHour(
+            year = 2024, month = 7, day = 15, localHour = 12.0,
+            latitude = 41.8781, longitude = -87.6298
+        )
+        // 12.0 CDT + 5h = 17.0 UTC
+        assertEquals(17.0, summerUtc, 0.1)
+
+        // California: Standard time (Jan) is UTC-8, Daylight time (July) is UTC-7
+        val laSummerUtc = com.example.util.TimezoneHelper.getUtcHour(
+            year = 2024, month = 7, day = 15, localHour = 14.0,
+            latitude = 34.0522, longitude = -118.2437
+        )
+        // 14.0 PDT + 7h = 21.0 UTC
+        assertEquals(21.0, laSummerUtc, 0.1)
+    }
+
+    @Test
+    fun testSynastryAndTransitCalculations() {
+        val p1Planets = PlanetCalculator.calculatePlanets(1990, 6, 21, 12.0, 40.7128, -74.0060)
+        val p2Planets = PlanetCalculator.calculatePlanets(1992, 10, 15, 12.0, 40.7128, -74.0060)
+
+        val synastry = PlanetCalculator.calculateSynastry(p1Planets, p2Planets)
+        assertTrue(synastry.isNotEmpty())
+
+        val (labelRomantic, scoreRomantic) = PlanetCalculator.calculateSynastryCompatibility(p1Planets, p2Planets, isRomantic = true)
+        assertTrue(scoreRomantic in 15..99)
+        assertTrue(labelRomantic in listOf("Soulmates", "Soul-bound", "Passionate", "Karmic"))
+
+        val (labelFriend, scoreFriend) = PlanetCalculator.calculateSynastryCompatibility(p1Planets, p2Planets, isRomantic = false)
+        assertTrue(scoreFriend in 15..99)
+        assertTrue(labelFriend in listOf("Soulmates", "Best friends", "Good friends", "Challenging"))
+
+        // Transits to natal chart
+        val transits = PlanetCalculator.calculatePlanets(2026, 11, 5, 12.0, 40.7128, -74.0060)
+        val transitAspects = PlanetCalculator.calculateTransitAspects(transits, p1Planets)
+        assertTrue(transitAspects.isNotEmpty())
+        for (ta in transitAspects) {
+            assertTrue(ta.orb <= 4.0)
+            assertTrue(ta.interpretation.isNotBlank())
+        }
+    }
+
+    @Test
+    fun testFlexibleTimeParsingIn100YearReport() {
+        // Test parsing 12-hour PM string in profile
+        val profilePm = com.example.data.UserProfile(
+            name = "Jordan Lee",
+            birthDate = "08/20/1985",
+            birthTime = "2:30 PM",
+            birthLocation = "Austin, TX",
+            latitude = 30.2672,
+            longitude = -97.7431
+        )
+        val report = com.example.ui.AstrologyTimelineGenerator.generate100YearMarkdownReport(profilePm)
+        assertTrue(report.contains("Jordan Lee"))
+        assertTrue(report.contains("1985 — 2085"))
+        assertTrue(report.contains("1ST SATURN RETURN"))
+    }
 }
+

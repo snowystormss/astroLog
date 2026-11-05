@@ -96,8 +96,7 @@ object PlanetCalculator {
         year: Int, month: Int, day: Int, hour: Double = 12.0,
         latitude: Double = 40.0, longitude: Double = 0.0
     ): AnglesResult {
-        val tzOffset = round(longitude / 15.0)
-        val utcHour = hour - tzOffset
+        val utcHour = com.example.util.TimezoneHelper.getUtcHour(year, month, day, hour, latitude, longitude)
         val d = getJulianDaysSinceJ2000(year, month, day, utcHour)
 
         val gmstDeg = 280.46061837 + 360.98564736629 * d
@@ -237,8 +236,7 @@ object PlanetCalculator {
         year: Int, month: Int, day: Int, hour: Double = 12.0,
         latitude: Double = 40.0, longitude: Double = 0.0
     ): Map<String, PlanetPosition> {
-        val tzOffset = round(longitude / 15.0)
-        val utcHour = hour - tzOffset
+        val utcHour = com.example.util.TimezoneHelper.getUtcHour(year, month, day, hour, latitude, longitude)
         val d = getJulianDaysSinceJ2000(year, month, day, utcHour)
 
         val w_sun = 282.9404 + 4.70935E-5 * d
@@ -790,5 +788,213 @@ object PlanetCalculator {
             cal.add(Calendar.DAY_OF_MONTH, 1)
         }
         return events
+    }
+
+    data class SynastryAspect(
+        val planet1: String,
+        val planet2: String,
+        val aspectName: String,
+        val orb: Double,
+        val isHarmonious: Boolean,
+        val interpretation: String
+    )
+
+    fun calculateSynastry(
+        p1Planets: Map<String, PlanetPosition>,
+        p2Planets: Map<String, PlanetPosition>
+    ): List<SynastryAspect> {
+        val aspects = mutableListOf<SynastryAspect>()
+        val personalPlanets = listOf("Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto", "North Node", "Ascendant")
+
+        for (p1 in personalPlanets) {
+            val pos1 = p1Planets[p1]?.longitude ?: continue
+            for (p2 in personalPlanets) {
+                val pos2 = p2Planets[p2]?.longitude ?: continue
+                var diff = abs(pos1 - pos2)
+                if (diff > 180.0) diff = 360.0 - diff
+
+                val orbConjunction = 8.0
+                val orbTrine = 7.5
+                val orbSquare = 7.0
+                val orbOpposition = 8.0
+                val orbSextile = 5.0
+
+                val aspectInfo = when {
+                    diff <= orbConjunction -> Pair("Conjunction", diff)
+                    abs(diff - 60.0) <= orbSextile -> Pair("Sextile", abs(diff - 60.0))
+                    abs(diff - 90.0) <= orbSquare -> Pair("Square", abs(diff - 90.0))
+                    abs(diff - 120.0) <= orbTrine -> Pair("Trine", abs(diff - 120.0))
+                    abs(diff - 180.0) <= orbOpposition -> Pair("Opposition", abs(diff - 180.0))
+                    else -> null
+                }
+
+                if (aspectInfo != null) {
+                    val (aspectName, orb) = aspectInfo
+                    val isHarmonious = aspectName == "Trine" || aspectName == "Sextile" || 
+                        (aspectName == "Conjunction" && p1 in listOf("Sun", "Moon", "Venus", "Jupiter") && p2 in listOf("Sun", "Moon", "Venus", "Jupiter"))
+                    
+                    val interp = when {
+                        (p1 == "Sun" && p2 == "Moon") || (p1 == "Moon" && p2 == "Sun") -> 
+                            if (isHarmonious || aspectName == "Conjunction") "Divine masculine and feminine harmony. Deep soul connection and instinctive mutual understanding."
+                            else "Dynamic solar-lunar tension that sparks magnetic attraction and opportunities for emotional growth."
+                        (p1 == "Venus" && p2 == "Mars") || (p1 == "Mars" && p2 == "Venus") ->
+                            "Potent romantic attraction and physical chemistry. Desires and aesthetic values create electric resonance."
+                        p1 == "Moon" && p2 == "Moon" ->
+                            if (isHarmonious || aspectName == "Conjunction") "Profound emotional safety and intuitive rhythm. You intuitively sense each other's moods."
+                            else "Differing emotional instincts that require open vulnerability and mindful reassurance."
+                        p1 == "Sun" && p2 == "Sun" ->
+                            if (isHarmonious || aspectName == "Conjunction") "Core life vitality and values mirror each other smoothly, encouraging shared creative endeavors."
+                            else "Two strong individual wills. You inspire each other to step into authentic leadership and self-expression."
+                        p1 == "Mercury" && p2 == "Mercury" ->
+                            "Mental wavelength synchronization. Conversations flow naturally with lively intellectual rapport."
+                        p1 == "Saturn" || p2 == "Saturn" ->
+                            "Karmic gravity and structural loyalty. This bond encourages accountability, emotional maturation, and long-term commitment."
+                        p1 == "North Node" || p2 == "North Node" ->
+                            "Fateful synastry. Meeting each other serves as a key catalyst for your life's spiritual evolution."
+                        else -> "$p1 $aspectName $p2 brings unique energetic exchange, blending both individuals' planetary forces."
+                    }
+
+                    aspects.add(SynastryAspect(p1, p2, aspectName, orb, isHarmonious, interp))
+                }
+            }
+        }
+        return aspects.sortedBy { it.orb }
+    }
+
+    fun calculateSynastryCompatibility(
+        p1Planets: Map<String, PlanetPosition>,
+        p2Planets: Map<String, PlanetPosition>,
+        isRomantic: Boolean = true
+    ): Pair<String, Int> {
+        val aspects = calculateSynastry(p1Planets, p2Planets)
+        var score = 40 // Baseline neutral affinity
+
+        val p1Sun = p1Planets["Sun"]?.sign ?: "Aries"
+        val p2Sun = p2Planets["Sun"]?.sign ?: "Aries"
+        val p1Moon = p1Planets["Moon"]?.sign ?: "Aries"
+        val p2Moon = p2Planets["Moon"]?.sign ?: "Aries"
+
+        val fireSigns = setOf("Aries", "Leo", "Sagittarius")
+        val earthSigns = setOf("Taurus", "Virgo", "Capricorn")
+        val airSigns = setOf("Gemini", "Libra", "Aquarius")
+        val waterSigns = setOf("Cancer", "Scorpio", "Pisces")
+
+        fun getElement(sign: String): String = when (sign) {
+            in fireSigns -> "Fire"
+            in earthSigns -> "Earth"
+            in airSigns -> "Air"
+            in waterSigns -> "Water"
+            else -> "Fire"
+        }
+
+        val e1Sun = getElement(p1Sun)
+        val e2Sun = getElement(p2Sun)
+        val e1Moon = getElement(p1Moon)
+        val e2Moon = getElement(p2Moon)
+
+        // Elemental synergy
+        if (e1Sun == e2Sun) score += 15
+        else if ((e1Sun == "Fire" && e2Sun == "Air") || (e1Sun == "Air" && e2Sun == "Fire") ||
+                 (e1Sun == "Earth" && e2Sun == "Water") || (e1Sun == "Water" && e2Sun == "Earth")) {
+            score += 12
+        }
+
+        if (e1Moon == e2Moon) score += 15
+        else if ((e1Moon == "Fire" && e2Moon == "Air") || (e1Moon == "Air" && e2Moon == "Fire") ||
+                 (e1Moon == "Earth" && e2Moon == "Water") || (e1Moon == "Water" && e2Moon == "Earth")) {
+            score += 12
+        }
+
+        // Weight aspects
+        for (a in aspects) {
+            val isLuminary = a.planet1 in listOf("Sun", "Moon") && a.planet2 in listOf("Sun", "Moon")
+            val isLove = (a.planet1 in listOf("Venus", "Mars") && a.planet2 in listOf("Venus", "Mars"))
+            val isKarmic = a.planet1 in listOf("Saturn", "North Node") || a.planet2 in listOf("Saturn", "North Node")
+
+            val weight = when {
+                isLuminary -> 8
+                isLove -> if (isRomantic) 8 else 4
+                isKarmic -> 5
+                else -> 2
+            }
+
+            if (a.isHarmonious) {
+                score += weight
+            } else if (a.aspectName in listOf("Square", "Opposition")) {
+                score += if (isRomantic && isLove) weight / 2 else (weight / 3) // Passionate friction
+            }
+        }
+
+        val finalScore = score.coerceIn(15, 99)
+
+        val label = if (isRomantic) {
+            when {
+                finalScore >= 75 -> "Soulmates"
+                finalScore >= 58 -> "Soul-bound"
+                finalScore >= 42 -> "Passionate"
+                else -> "Karmic"
+            }
+        } else {
+            when {
+                finalScore >= 75 -> "Soulmates"
+                finalScore >= 58 -> "Best friends"
+                finalScore >= 42 -> "Good friends"
+                else -> "Challenging"
+            }
+        }
+
+        return Pair(label, finalScore)
+    }
+
+    data class TransitAspect(
+        val transitPlanet: String,
+        val natalPlanet: String,
+        val aspectName: String,
+        val orb: Double,
+        val interpretation: String
+    )
+
+    fun calculateTransitAspects(
+        transitingPlanets: Map<String, PlanetPosition>,
+        natalPlanets: Map<String, PlanetPosition>
+    ): List<TransitAspect> {
+        val transitBodies = listOf("Moon", "Sun", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto")
+        val natalBodies = listOf("Sun", "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Ascendant", "Midheaven")
+        val list = mutableListOf<TransitAspect>()
+
+        for (tp in transitBodies) {
+            val tPos = transitingPlanets[tp]?.longitude ?: continue
+            for (np in natalBodies) {
+                val nPos = natalPlanets[np]?.longitude ?: continue
+                var diff = abs(tPos - nPos)
+                if (diff > 180.0) diff = 360.0 - diff
+
+                val maxOrb = if (tp == "Moon") 4.0 else 3.5
+                val aspectInfo = when {
+                    diff <= maxOrb -> Pair("Conjunction", diff)
+                    abs(diff - 60.0) <= maxOrb -> Pair("Sextile", abs(diff - 60.0))
+                    abs(diff - 90.0) <= maxOrb -> Pair("Square", abs(diff - 90.0))
+                    abs(diff - 120.0) <= maxOrb -> Pair("Trine", abs(diff - 120.0))
+                    abs(diff - 180.0) <= maxOrb -> Pair("Opposition", abs(diff - 180.0))
+                    else -> null
+                }
+
+                if (aspectInfo != null) {
+                    val (name, orb) = aspectInfo
+                    val interp = when {
+                        tp == "Sun" && np == "Sun" && name == "Conjunction" -> "Solar Return illumination! Vitality and conscious direction peak."
+                        tp == "Jupiter" && (name == "Trine" || name == "Conjunction" || name == "Sextile") -> "Expansive cosmic favor touches your natal $np, opening doors for growth, optimism, and fortune."
+                        tp == "Saturn" && (name == "Square" || name == "Opposition" || name == "Conjunction") -> "Constructive Saturn tests your natal $np, inviting disciplined focus, boundaries, and maturity."
+                        tp == "Mars" && (name == "Conjunction" || name == "Trine" || name == "Square") -> "Active martial adrenaline invigorates your natal $np. Take courageous, intentional action."
+                        tp == "Venus" && (name == "Conjunction" || name == "Trine" || name == "Sextile") -> "Pleasant social, romantic, and creative magnetism flows easily to your natal $np."
+                        tp == "Mercury" && (name == "Conjunction" || name == "Trine" || name == "Sextile") -> "Sharp mental clarity, quick communication, and insightful negotiations highlighted."
+                        tp == "Moon" && name == "Conjunction" -> "Deep emotional attunement as the transiting Moon merges with your natal $np."
+                        else -> "Transiting $tp forms an active $name to your natal $np, catalyzing focused self-awareness."
+                    }
+                    list.add(TransitAspect(tp, np, name, orb, interp))
+                }
+            }
+        }
+        return list.sortedBy { it.orb }
     }
 }

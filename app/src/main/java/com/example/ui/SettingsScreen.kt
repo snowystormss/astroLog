@@ -69,9 +69,20 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var isExporting100Year by remember { mutableStateOf(false) }
-    var generatedReportMarkdown by remember { mutableStateOf<String?>(null) }
+    var generatedReportMarkdown by rememberSaveable { mutableStateOf<String?>(null) }
     var showPreviewDialog by remember { mutableStateOf(false) }
     var previewMarkdownContent by remember { mutableStateOf<String?>(null) }
+
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.updateUserSettings(settings.copy(dailyReminderEnabled = true))
+            com.example.ui.NotificationHelper.scheduleDailyReminder(context, settings.dailyReminderTime)
+        } else {
+            android.widget.Toast.makeText(context, "Notification permission is required for daily reminders", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val createDocLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/markdown")
@@ -437,11 +448,26 @@ fun SettingsScreen(
                 Text("Enable Daily Notifications", style = MaterialTheme.typography.bodyLarge)
                 Switch(
                     checked = settings.dailyReminderEnabled,
-                    onCheckedChange = { 
-                        viewModel.updateUserSettings(settings.copy(dailyReminderEnabled = it))
-                        // We do not cancel the worker because it also fetches daily background updates regardless of notifications.
-                        if (it) {
-                            com.example.ui.NotificationHelper.scheduleDailyReminder(context, settings.dailyReminderTime)
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.POST_NOTIFICATIONS
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                                if (hasPermission) {
+                                    viewModel.updateUserSettings(settings.copy(dailyReminderEnabled = true))
+                                    com.example.ui.NotificationHelper.scheduleDailyReminder(context, settings.dailyReminderTime)
+                                } else {
+                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                }
+                            } else {
+                                viewModel.updateUserSettings(settings.copy(dailyReminderEnabled = true))
+                                com.example.ui.NotificationHelper.scheduleDailyReminder(context, settings.dailyReminderTime)
+                            }
+                        } else {
+                            viewModel.updateUserSettings(settings.copy(dailyReminderEnabled = false))
                         }
                     }
                 )

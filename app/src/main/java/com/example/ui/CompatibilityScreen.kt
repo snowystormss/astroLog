@@ -307,21 +307,12 @@ fun CompatibilityDetailScreen(
                     }
                     val p2Sun = p2Planets["Sun"]?.sign ?: "Taurus"
 
-                    val score = (p1Sun.hashCode() + p2Sun.hashCode()).absoluteValue % 4
-                    val compatibilityLabel = if (partner.relationshipType == "Romantic") {
-                        when(score) {
-                            0 -> "Karmic"
-                            1 -> "Soul-bound"
-                            2 -> "Passionate"
-                            else -> "Soulmates"
-                        }
-                    } else {
-                        when(score) {
-                            0 -> "Challenging"
-                            1 -> "Good friends"
-                            2 -> "Best friends"
-                            else -> "Soulmates"
-                        }
+                    val (compatibilityLabel, _) = remember(p1Planets, p2Planets, partner.relationshipType) {
+                        PlanetCalculator.calculateSynastryCompatibility(
+                            p1Planets = p1Planets,
+                            p2Planets = p2Planets,
+                            isRomantic = (partner.relationshipType == "Romantic")
+                        )
                     }
 
                     Column(

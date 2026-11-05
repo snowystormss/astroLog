@@ -1,6 +1,6 @@
 {
-  "summary": "Implementation plan for adding the 100-Year Life Astrology Data Export feature in Markdown (.md) format to the Settings Screen under Data & Backup.",
-  "updatedAt": "2026-11-05T16:50:25.906535512Z",
+  "summary": "Comprehensive implementation plan addressing astronomical ephemeris accuracy (timezone/DST, AM/PM time parsing, 101-year solar return ephemeris scan), Android lifecycle & notification permissions (POST_NOTIFICATIONS runtime request, rememberSaveable export state, city search alias normalization), and dynamic transit/synastry generation.",
+  "updatedAt": "2026-11-05T17:43:54.914315500Z",
   "requestFeedback": true,
   "userFacing": true
 }

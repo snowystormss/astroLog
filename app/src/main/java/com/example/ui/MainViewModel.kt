@@ -301,64 +301,100 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
             repository.clearInsightByType("COMPATIBILITY_${partner.id}")
             repository.clearInsightByType("TIMINGS_${partner.id}")
                 
-                val p1Date = profile.birthDate.split("/")
-            val p1Y = p1Date.getOrNull(2)?.toIntOrNull() ?: 2000
-            val p2Date = partner.birthDate.split("/")
-            val p2Y = p2Date.getOrNull(2)?.toIntOrNull() ?: 2000
-            
-            val p1Planets = PlanetCalculator.calculatePlanets(p1Y, p1Date.getOrNull(0)?.toIntOrNull() ?: 1, p1Date.getOrNull(1)?.toIntOrNull() ?: 1, 12.0, profile.latitude, profile.longitude)
-            val p2Planets = PlanetCalculator.calculatePlanets(p2Y, p2Date.getOrNull(0)?.toIntOrNull() ?: 1, p2Date.getOrNull(1)?.toIntOrNull() ?: 1, 12.0, partner.latitude, partner.longitude)
-            
+            val (p1M, p1D, p1Y) = parseDate(profile.birthDate)
+            val p1Hour = parseTime(profile.birthTime)
+            val (p2M, p2D, p2Y) = parseDate(partner.birthDate)
+            val p2Hour = parseTime(partner.birthTime)
+
+            val p1Planets = PlanetCalculator.calculatePlanets(p1Y, p1M, p1D, p1Hour, profile.latitude, profile.longitude)
+            val p2Planets = PlanetCalculator.calculatePlanets(p2Y, p2M, p2D, p2Hour, partner.latitude, partner.longitude)
+
+            val p1Name = profile.name.ifBlank { "You" }
+            val p2Name = partner.name.ifBlank { "Partner" }
+
             val p1Sun = p1Planets["Sun"]?.sign ?: "Aries"
             val p1Moon = p1Planets["Moon"]?.sign ?: "Aries"
             val p1Venus = p1Planets["Venus"]?.sign ?: "Aries"
+            val p1Mars = p1Planets["Mars"]?.sign ?: "Aries"
+            val p1Mercury = p1Planets["Mercury"]?.sign ?: "Aries"
+
             val p2Sun = p2Planets["Sun"]?.sign ?: "Aries"
             val p2Moon = p2Planets["Moon"]?.sign ?: "Aries"
             val p2Venus = p2Planets["Venus"]?.sign ?: "Aries"
+            val p2Mars = p2Planets["Mars"]?.sign ?: "Aries"
+            val p2Mercury = p2Planets["Mercury"]?.sign ?: "Aries"
+
+            val synastryAspects = PlanetCalculator.calculateSynastry(p1Planets, p2Planets)
+            val (synastryLabel, synastryScore) = PlanetCalculator.calculateSynastryCompatibility(
+                p1Planets, p2Planets, partner.relationshipType == "Romantic"
+            )
+
+            val primaryAspectStr = synastryAspects.firstOrNull()?.let {
+                "${it.planet1} ${it.aspectName} ${it.planet2} (orb ${"%.1f".format(it.orb)}°)"
+            } ?: "Solar & Lunar Symmetry"
 
             val compFallback = """
                 TITLE: Cosmic Resonance
-                SUMMARY: Elements of $p1Sun and $p2Sun form a highly specialized field of attraction.
-                DEEP_DIVE: The interaction between a $p1Sun native and a $p2Sun native triggers a process of deep mutual reflection. In this relationship, your core goals and personalities meet in a mix of elementals. Whether forming a supportive trine, a dynamic square, or a magnetic opposition, this Sun-to-Sun placement acts as a constant engine of self-discovery and growth.
+                SUMMARY: $p1Name ($p1Sun) and $p2Name ($p2Sun) — $synastryLabel bond ($synastryScore% cosmic affinity).
+                DEEP_DIVE: The interaction between a $p1Sun Sun and a $p2Sun Sun establishes a powerful energetic circuit. With $primaryAspectStr actively influencing your charts, your core life paths reflect and challenge each other. The elemental relationship between your Suns fosters mutual growth, encouraging both individuals to anchor their authentic sovereignty while building a shared foundation.
                 |||
                 TITLE: Emotional Reflection
-                SUMMARY: Your inner worlds, guided by the $p1Moon and $p2Moon Moon, speak in intimate whispers.
-                DEEP_DIVE: Your emotional security needs are governed by your lunar placements. With User 1 having a $p1Moon Moon and User 2 a $p2Moon Moon, your emotional languages are beautifully complex. You may express feelings through differing habits, but the shared spaces you create will allow you both to feel deeply seen, encouraging vulnerability and emotional maturity.
+                SUMMARY: Lunar sanctuary between $p1Name's $p1Moon Moon and $p2Name's $p2Moon Moon.
+                DEEP_DIVE: Emotional intimacy is guided by your lunar placements. $p1Name navigates emotional needs through the lens of $p1Moon, while $p2Name processes through $p2Moon. By honoring each other's instinctual rhythms and creating non-judgmental space, your inner worlds weave a deeply healing psychological sanctuary.
                 |||
                 TITLE: Venusian Alignment
-                SUMMARY: The principles of attraction ($p1Venus and $p2Venus Venus) find deep, romantic alignment.
-                DEEP_DIVE: Venus governs how you love, receive pleasure, and express affection. The link between a $p1Venus and $p2Venus placement results in an intriguing aesthetic and romantic symmetry. You express your care through complementary behaviors: while one may show devotion through practical acts of care, the other brings emotional depth, weaving a highly supportive tapestry of love.
+                SUMMARY: Romantic attraction, affection, and values ($p1Venus Venus & $p2Venus Venus).
+                DEEP_DIVE: In romance and aesthetics, $p1Name expresses love through $p1Venus while $p2Name receives and values love through $p2Venus. Combined with Mars in $p1Mars and $p2Mars, your romantic chemistry contains both tender appreciation and stimulating creative passion.
+                |||
+                TITLE: Mental Synchronicity
+                SUMMARY: Communication matrix between Mercury in $p1Mercury and Mercury in $p2Mercury.
+                DEEP_DIVE: How you share ideas, resolve debates, and coordinate daily logistics is rooted in your Mercury placements. Mercury in $p1Mercury meets Mercury in $p2Mercury, ensuring that curiosity, humor, and active listening become bridges rather than barriers.
                 |||
                 TITLE: Karmic Connection
-                SUMMARY: Traditional lessons of compromise require patience and deep listening.
-                DEEP_DIVE: Every powerful alliance carries its own signature of past-life connections and soul lessons. In your shared path, the primary lesson is to move past projection and learn authentic, non-defensive communication. Overcoming these trials is precisely what transforms this connection into a deeply anchored partnership.
-                |||
-                TITLE: Soul Bonding
-                SUMMARY: A transcendent connection that deepens when navigating life's challenges together.
-                DEEP_DIVE: At the core of the relationship lies a quiet, unshakeable space where you both match frequencies. This soul-bonding element ensures that even during times of physical distance or planetary storms, there is a subtle thread of cosmic understanding pulling you back together to evolve.
+                SUMMARY: Saturnian lessons, structural loyalty, and mutual soul evolution.
+                DEEP_DIVE: Every enduring connection carries karmic responsibilities. Celestial ties between Saturn and the lunar nodes highlight that your meeting is not coincidental. Through patience, accountability, and compassionate boundaries, you transform immediate friction into unwavering mutual loyalty.
                 |||
                 TITLE: Future Horizon
-                SUMMARY: The mutual trajectory leads toward shared creation and individual empowerment.
-                DEEP_DIVE: As your partnership matures, your celestial charts indicate that the focus of your connection will shift from immediate passion to beautiful, collaborative creations. Together, you inspire each other to step into your highest individual potentials.
+                SUMMARY: The mutual trajectory leads toward shared creation and sovereign empowerment.
+                DEEP_DIVE: As your dynamic deepens, celestial geometry indicates that the focus of your connection matures from immediate attraction into collaborative creation. Together, you inspire each other to step into your highest potentials.
             """.trimIndent()
 
-            val timingsFallback = """
-                TITLE: Celestial Alignment
-                DATE: Now - Nov 2026
-                DEEP_DIVE: During this period, current planetary transits highlight mutual communication and shared values. You will find yourselves aligning on key personal objectives, allowing you to resolve past misunderstandings and anchor your emotional foundation. Outward circumstances are supportive of joint ventures.
-                |||
-                TITLE: Saturnine Reflection
-                DATE: Dec 2026 - Mar 2027
-                DEEP_DIVE: A period of consolidation and soul-searching. External delays might put some stress on immediate plans, but these circumstances are designed to test and strengthen the reliability of your bond. Focus on patience, building sturdy routines, and offering mutual reassurance as you navigate these constructive lessons.
-                |||
-                TITLE: Jovian Expansion
-                DATE: Apr 2027 - Aug 2027
-                DEEP_DIVE: Luck, optimism, and beautiful adventures characterize this phase. Under the expansive gaze of Jupiter, you are encouraged to step out of your comfort zones. Romantic trips, creative collaborations, or joint home upgrades are highly favored. It is a period of joyful bonding and laughter.
-                |||
-                TITLE: Retrograde Intimacy
-                DATE: Sep 2027 - Dec 2027
-                DEEP_DIVE: Major personal planets slow down, asking you to look backward and appreciate how far you have come together. Cozy domestic moments, revisiting favorite memory-filled spaces, and refining your shared vision will revitalize your bond. You are learning that the quietest moments are often the most profound.
-            """.trimIndent()
+            val now = java.time.LocalDate.now()
+            val quarters = listOf(
+                Pair(now, now.plusMonths(3)),
+                Pair(now.plusMonths(3), now.plusMonths(6)),
+                Pair(now.plusMonths(6), now.plusMonths(9)),
+                Pair(now.plusMonths(9), now.plusMonths(12))
+            )
+
+            val timingTitles = listOf(
+                "Celestial Alignment & Foundation",
+                "Saturnine Growth & Realignment",
+                "Jovian Expansion & Abundance",
+                "Deep Planetary Synthesis"
+            )
+
+            val timingsFallback = quarters.mapIndexed { idx, (start, end) ->
+                val midDate = start.plusDays(45)
+                val midTransits = PlanetCalculator.calculatePlanets(midDate.year, midDate.monthValue, midDate.dayOfMonth, 12.0)
+                val tJup = midTransits["Jupiter"]?.sign ?: "Gemini"
+                val tSat = midTransits["Saturn"]?.sign ?: "Pisces"
+                val tMars = midTransits["Mars"]?.sign ?: "Leo"
+                val dateLabel = "${start.month.name.take(3)} ${start.year} — ${end.month.name.take(3)} ${end.year}"
+                val title = timingTitles[idx]
+                val deepDive = when (idx) {
+                    0 -> "During this current quarter, transiting Jupiter in $tJup and Saturn in $tSat activate key placements between $p1Name and $p2Name. Outward opportunities encourage shared alignment, opening doors for transparent communication and deepening mutual trust."
+                    1 -> "As Saturn holds focus in $tSat, the celestial weather calls for patience and grounded dedication. This is a constructive period for defining healthy boundaries, organizing joint projects, and reinforcing the enduring strength of your connection."
+                    2 -> "Expansive Jovian energies dominate with Jupiter in $tJup, sparking optimism, spontaneous adventures, and shared creative inspiration. Romantic trips, new social circles, or shared endeavors are highly supported under this cycle."
+                    3 -> "Mars in $tMars catalyzes forward action, testing and elevating the maturity of your bond. Integrating lessons from the past cycle solidifies this connection as a profound source of mutual empowerment."
+                    else -> "Transiting planetary cycles continue to support the conscious evolution of your shared path."
+                }
+                """
+                    TITLE: $title
+                    DATE: $dateLabel
+                    DEEP_DIVE: $deepDive
+                """.trimIndent()
+            }.joinToString("\n|||\n")
 
             repository.saveInsightLocally("COMPATIBILITY_${partner.id}", compFallback)
             repository.saveInsightLocally("TIMINGS_${partner.id}", timingsFallback)
@@ -465,69 +501,109 @@ class MainViewModel(private val repository: AstrologyRepository) : ViewModel() {
         }
     }
 
-    private fun generateDailyHoroscopes(profile: UserProfile) {
-        val dateParts = profile.birthDate.split("/")
-        val month = dateParts.getOrNull(0)?.toIntOrNull() ?: 1
-        val day = dateParts.getOrNull(1)?.toIntOrNull() ?: 1
-        val year = dateParts.getOrNull(2)?.toIntOrNull() ?: 2000
-        val planets = PlanetCalculator.calculatePlanets(year, month, day, 12.0, profile.latitude, profile.longitude) // Approx
-        
-        val sun = planets["Sun"]?.sign ?: "Aries"
-        val moon = planets["Moon"]?.sign ?: "Aries"
-        val venus = planets["Venus"]?.sign ?: "Aries"
-        val mars = planets["Mars"]?.sign ?: "Aries"
+    private fun parseDate(dateStr: String): Triple<Int, Int, Int> {
+        val parts = if (dateStr.contains("/")) dateStr.split("/") else dateStr.split("-")
+        return if (dateStr.contains("-") && parts.size == 3 && parts[0].length == 4) {
+            val y = parts[0].toIntOrNull() ?: 2000
+            val m = parts[1].toIntOrNull() ?: 1
+            val d = parts[2].toIntOrNull() ?: 1
+            Triple(m, d, y)
+        } else {
+            val m = parts.getOrNull(0)?.toIntOrNull() ?: 1
+            val d = parts.getOrNull(1)?.toIntOrNull() ?: 1
+            val y = parts.getOrNull(2)?.toIntOrNull() ?: 2000
+            Triple(m, d, y)
+        }
+    }
 
-        viewModelScope.launch {
-            val fallbackText = """
-                TITLE: Solar Focus
-                ADVICE: Honor your $sun nature with purposeful action today.
-                DEEP_DIVE: Today, solar alignments elevate your personal confidence and call you to showcase your innate $sun capability. Take charge of your path, make vital decisions, and allow your radiant spirit to motivate the people around you.
+    private fun parseTime(timeStr: String): Double {
+        if (timeStr.startsWith("Unknown", ignoreCase = true)) return 12.0
+        val parts = timeStr.split(":")
+        var h = parts.getOrNull(0)?.toDoubleOrNull() ?: 12.0
+        val mStr = parts.getOrNull(1) ?: "0"
+        val m = mStr.filter { it.isDigit() || it == '.' }.toDoubleOrNull() ?: 0.0
+        val lower = timeStr.lowercase()
+        if (lower.contains("pm") && h < 12.0) h += 12.0
+        if (lower.contains("am") && h == 12.0) h = 0.0
+        return (h + m / 60.0).coerceIn(0.0, 23.99)
+    }
+
+    private fun generateDailyHoroscopes(profile: UserProfile) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val (birthMonth, birthDay, birthYear) = parseDate(profile.birthDate)
+            val birthHour = parseTime(profile.birthTime)
+            val natalPlanets = PlanetCalculator.calculatePlanets(
+                birthYear, birthMonth, birthDay, birthHour, profile.latitude, profile.longitude
+            )
+            val nSun = natalPlanets["Sun"]?.sign ?: "Aries"
+            val nMoon = natalPlanets["Moon"]?.sign ?: "Aries"
+            val nVenus = natalPlanets["Venus"]?.sign ?: "Aries"
+            val nMars = natalPlanets["Mars"]?.sign ?: "Aries"
+
+            val today = java.time.LocalDate.now()
+            val transits = PlanetCalculator.calculatePlanets(
+                today.year, today.monthValue, today.dayOfMonth, 12.0, profile.latitude, profile.longitude
+            )
+            val lunarPhase = PlanetCalculator.getLunarPhase(today.year, today.monthValue, today.dayOfMonth)
+            val transitAspects = PlanetCalculator.calculateTransitAspects(transits, natalPlanets)
+
+            val tSun = transits["Sun"] ?: PlanetCalculator.PlanetPosition("Aries", 0, 0.0)
+            val tMoon = transits["Moon"] ?: PlanetCalculator.PlanetPosition("Aries", 0, 0.0)
+            val tVenus = transits["Venus"] ?: PlanetCalculator.PlanetPosition("Aries", 0, 0.0)
+            val tMars = transits["Mars"] ?: PlanetCalculator.PlanetPosition("Aries", 0, 0.0)
+            val tMercury = transits["Mercury"] ?: PlanetCalculator.PlanetPosition("Aries", 0, 0.0)
+
+            val primaryAspect = transitAspects.firstOrNull()
+
+            val dailyFeedText = """
+                TITLE: Solar Current: Sun in ${tSun.sign} ${tSun.degree}°
+                ADVICE: Anchor your $nSun focus into deliberate, purposeful action.
+                DEEP_DIVE: The transiting Sun advances through ${tSun.sign} at ${tSun.degree}°, illuminating your conscious willpower and outward creative endeavors. For a native with Sun in $nSun, today's solar radiation encourages authentic self-expression, decisive initiative, and leadership.
                 |||
-                TITLE: Lunar Whispers
-                ADVICE: Your emotional security lies in embracing your quiet $moon Moon.
-                DEEP_DIVE: The emotional landscape is highly receptive today. With your Moon in $moon, you might absorb external energies more easily. Treat yourself with extra gentleness, set healthy psychological boundaries, and align with your brilliant intuition.
+                TITLE: Lunar Rhythm: ${lunarPhase.name} in ${lunarPhase.moonSign}
+                ADVICE: ${lunarPhase.description}
+                DEEP_DIVE: Today's emotional tides are governed by the ${lunarPhase.name} at ${tMoon.degree}° of ${lunarPhase.moonSign}. When intersecting your natal $nMoon Moon, this lunar cycle calls for emotional honesty, mindful boundaries, and listening closely to your instinctual radar.
                 |||
-                TITLE: Aesthetic Pull
-                ADVICE: Your $venus Venus invites beautiful connections and harmony.
-                DEEP_DIVE: Romantic and aesthetic matters are deeply favored. Today is a magnificent time to express care through acts that match your $venus Venus nature. Connect with friends or romantic partners, appreciation of beauty is highlighted.
+                TITLE: ${if (primaryAspect != null) "Transit: ${primaryAspect.transitPlanet} ${primaryAspect.aspectName} Natal ${primaryAspect.natalPlanet}" else "Mercury in ${tMercury.sign}: Mental Flow"}
+                ADVICE: ${primaryAspect?.interpretation ?: "Cultivate crisp communication, curiosity, and strategic discernment."}
+                DEEP_DIVE: ${if (primaryAspect != null) "Today's planetary geometry forms an active ${primaryAspect.aspectName.lowercase()} between transiting ${primaryAspect.transitPlanet} and your natal ${primaryAspect.natalPlanet} (orb ${"%.1f".format(primaryAspect.orb)}°). This celestial aspect acts as a focused catalyst, clearing away hesitation and highlighting a key growth vector." else "Transiting Mercury at ${tMercury.degree}° of ${tMercury.sign} brings sharp cognitive clarity, easing negotiations and complex analysis."}
                 |||
-                TITLE: Vital Impulse
-                ADVICE: Direct your internal $mars Mars drive with methodical focus.
-                DEEP_DIVE: The fiery energy of Mars is ready to assist you. Whether tackling professional goals or physical activities, your drive is potent. Maintain clear, disciplined actions and see your tasks through to total success.
+                TITLE: Venus & Mars Alignment
+                ADVICE: Balance the diplomatic grace of Venus with Mars's assertive drive.
+                DEEP_DIVE: Transiting Venus in ${tVenus.sign} and Mars in ${tMars.sign} create a dynamic interplay between attraction, values, and ambitious execution. Channel your natal $nMars Mars courage through focused tasks while honoring your $nVenus Venus appreciation for harmony and meaningful connections.
                 |||
-                TITLE: Cosmic Balance
-                ADVICE: Breathe deeply and align your thoughts with universal timing.
-                DEEP_DIVE: The transiting planets encourage balance across all aspects of your life. Pacing yourself allows you to tap into deep spiritual resources, transforming immediate trials into long-term wisdom.
+                TITLE: Cosmic Synthesis
+                ADVICE: Trust the natural rhythm of universal timing and walk with grounded poise.
+                DEEP_DIVE: Synthesizing today's real-time transits reveals an invitation to harmonize outward ambition with inward reflection. By balancing the solar vitality of ${tSun.sign} with the intuitive lessons of the ${lunarPhase.moonSign} Moon, you navigate today with celestial confidence.
             """.trimIndent()
 
-            repository.saveInsightLocally("DAILY_FEED", fallbackText)
+            repository.saveInsightLocally("DAILY_FEED", dailyFeedText)
             isGeneratingDailyHoroscopes = false
         }
     }
 
     private fun generateDailyAffirmations(profile: UserProfile) {
-        val dateParts = profile.birthDate.split("/")
-        val month = dateParts.getOrNull(0)?.toIntOrNull() ?: 1
-        val day = dateParts.getOrNull(1)?.toIntOrNull() ?: 1
-        val year = dateParts.getOrNull(2)?.toIntOrNull() ?: 2000
-        val planets = PlanetCalculator.calculatePlanets(year, month, day, 12.0, profile.latitude, profile.longitude)
-        
-        val sun = planets["Sun"]?.sign ?: "Aries"
-        val moon = planets["Moon"]?.sign ?: "Aries"
-        val venus = planets["Venus"]?.sign ?: "Aries"
-        val mars = planets["Mars"]?.sign ?: "Aries"
-
-        viewModelScope.launch {
-            val cal = java.util.Calendar.getInstance()
-            val dayOfYear = cal.get(java.util.Calendar.DAY_OF_YEAR)
-            val affirmations = listOf(
-                "I am grounded in the cosmic wisdom of my $sun soul, moving with ease through today's transitions and welcoming abundant blessings.",
-                "I align with the gentle strength of my $moon Moon, trusting my intuition and walking my path with quiet grace and deep peace.",
-                "My heart is open to the beautiful abundance of the universe, attracting supportive connections and pure harmony.",
-                "I possess the courage to overcome any challenge, channeling my $sun passion into creative, empowering actions.",
-                "I release all doubts to the cosmic currents, recognizing that my journey is unfolding in perfect celestial timing.",
-                "I am a magnificent expression of the stars, radiating confident light and lifting the energy of those around me."
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+            val (birthMonth, birthDay, birthYear) = parseDate(profile.birthDate)
+            val birthHour = parseTime(profile.birthTime)
+            val natalPlanets = PlanetCalculator.calculatePlanets(
+                birthYear, birthMonth, birthDay, birthHour, profile.latitude, profile.longitude
             )
+            val nSun = natalPlanets["Sun"]?.sign ?: "Aries"
+            val nMoon = natalPlanets["Moon"]?.sign ?: "Aries"
+
+            val today = java.time.LocalDate.now()
+            val lunarPhase = PlanetCalculator.getLunarPhase(today.year, today.monthValue, today.dayOfMonth)
+
+            val affirmations = listOf(
+                "Under the ${lunarPhase.name} in ${lunarPhase.moonSign}, I ground my $nSun vitality in deep cosmic trust and step forward with fearless clarity.",
+                "I honor the emotional wisdom of my $nMoon Moon, welcoming inner peace and allowing the universe to guide today's unfolding.",
+                "Guided by the active transits in ${lunarPhase.moonSign}, I release doubt, align with abundant blessings, and radiate centered confidence.",
+                "My heart and mind are in sacred harmony, channeling my $nSun passion into empowering creations and uplifting connections.",
+                "I walk in rhythm with the celestial spheres, trusting that every challenge is transforming into enduring wisdom and strength.",
+                "I am a radiant conduit of cosmic light, embracing the gifts of this ${lunarPhase.name} and walking my true path with serenity."
+            )
+            val dayOfYear = today.dayOfYear
             val localAffirmation = affirmations[dayOfYear % affirmations.size]
             repository.saveInsightLocally("DAILY_AFFIRMATION", localAffirmation)
             isGeneratingDailyAffirmations = false

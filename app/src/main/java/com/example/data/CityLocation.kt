@@ -40,11 +40,23 @@ object CitySearchService {
         UsCitiesData.ALL_CITIES
     }
 
+    fun normalizeToken(token: String): String {
+        return token.lowercase()
+            .replace("st.", "saint")
+            .replace("st ", "saint ")
+            .replace("ft.", "fort")
+            .replace("ft ", "fort ")
+            .replace("['\\-]".toRegex(), " ")
+            .replace("\\s+".toRegex(), " ")
+            .trim()
+    }
+
     /**
      * Fast token-based search supporting:
      * - "Austin, TX" / "Austin TX" / "Austin, Texas"
      * - "Dallas" (returns Dallas, TX before smaller Dallases)
      * - "Springfield, IL" vs "Springfield, MO"
+     * - "Saint Louis" vs "St. Louis", "Coeur d'Alene" vs "Coeur d Alene"
      * - Full state name and postal abbreviation two-way resolution
      */
     fun search(query: String, limit: Int = 6): List<CityLocation> {
@@ -53,6 +65,7 @@ object CitySearchService {
 
         val parsed = UsStateHelper.parseQuery(cleanQuery)
         val cityQueryLower = parsed.cityQuery.lowercase().trim()
+        val cityQueryNorm = normalizeToken(parsed.cityQuery)
         val stateFilterCode = parsed.stateFilterCode
         val tokens = cleanQuery.lowercase().split(Regex("[,\\s]+")).filter { it.isNotEmpty() }
 
@@ -61,7 +74,9 @@ object CitySearchService {
         return CITIES
             .mapNotNull { city ->
                 val nameLower = city.name.lowercase()
+                val nameNorm = normalizeToken(city.name)
                 val regionLower = city.region.lowercase()
+                val regionNorm = normalizeToken(city.region)
                 val stateCodeUpper = city.stateCode.uppercase()
                 val countryLower = city.country.lowercase()
 
@@ -70,7 +85,8 @@ object CitySearchService {
                 // If explicit state filter was detected (e.g. "FL", "Texas", "CA")
                 if (stateFilterCode != null) {
                     val stateMatches = stateCodeUpper == stateFilterCode || 
-                                       regionLower == parsed.stateFilterName?.lowercase()
+                                       regionLower == parsed.stateFilterName?.lowercase() ||
+                                       regionNorm == normalizeToken(parsed.stateFilterName ?: "")
 
                     if (stateMatches) {
                         score += 80
@@ -80,11 +96,11 @@ object CitySearchService {
                     }
 
                     if (cityQueryLower.isNotEmpty()) {
-                        if (nameLower == cityQueryLower) {
+                        if (nameLower == cityQueryLower || nameNorm == cityQueryNorm) {
                             score += 200
-                        } else if (nameLower.startsWith(cityQueryLower)) {
+                        } else if (nameLower.startsWith(cityQueryLower) || nameNorm.startsWith(cityQueryNorm)) {
                             score += 120
-                        } else if (nameLower.contains(cityQueryLower)) {
+                        } else if (nameLower.contains(cityQueryLower) || nameNorm.contains(cityQueryNorm)) {
                             score += 60
                         } else {
                             // City name doesn't match
@@ -94,12 +110,13 @@ object CitySearchService {
                 } else {
                     // General multi-token search
                     val primaryToken = tokens.first()
+                    val primaryTokenNorm = normalizeToken(primaryToken)
 
-                    if (nameLower == primaryToken) {
+                    if (nameLower == primaryToken || nameNorm == primaryTokenNorm) {
                         score += 150
-                    } else if (nameLower.startsWith(primaryToken)) {
+                    } else if (nameLower.startsWith(primaryToken) || nameNorm.startsWith(primaryTokenNorm)) {
                         score += 100
-                    } else if (nameLower.contains(primaryToken)) {
+                    } else if (nameLower.contains(primaryToken) || nameNorm.contains(primaryTokenNorm)) {
                         score += 50
                     }
 
@@ -108,16 +125,17 @@ object CitySearchService {
                         var secondaryMatched = 0
                         for (token in secondaryTokens) {
                             val upperToken = token.uppercase()
+                            val tokenNorm = normalizeToken(token)
                             if (stateCodeUpper == upperToken) {
                                 score += 90
                                 secondaryMatched++
-                            } else if (regionLower.startsWith(token) || regionLower.contains(token)) {
+                            } else if (regionLower.startsWith(token) || regionLower.contains(token) || regionNorm.contains(tokenNorm)) {
                                 score += 60
                                 secondaryMatched++
                             } else if (countryLower.startsWith(token)) {
                                 score += 30
                                 secondaryMatched++
-                            } else if (nameLower.contains(token)) {
+                            } else if (nameLower.contains(token) || nameNorm.contains(tokenNorm)) {
                                 score += 30
                                 secondaryMatched++
                             }

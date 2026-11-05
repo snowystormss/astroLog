@@ -96,13 +96,22 @@ object AstrologyTimelineGenerator {
             Triple(1, 1, 2000)
         }
 
-        val birthHour = if (!profile.birthTime.startsWith("Unknown")) {
-            val parts = profile.birthTime.split(":")
-            val h = parts.getOrNull(0)?.toDoubleOrNull() ?: 12.0
-            val m = parts.getOrNull(1)?.toDoubleOrNull() ?: 0.0
-            h + (m / 60.0)
-        } else {
-            12.0
+        val birthHour = run {
+            val raw = profile.birthTime.trim()
+            if (raw.isBlank() || raw.startsWith("Unknown", ignoreCase = true)) {
+                12.0
+            } else {
+                val isPm = raw.contains("PM", ignoreCase = true)
+                val isAm = raw.contains("AM", ignoreCase = true)
+                val cleaned = raw.replace("(?i)am|pm".toRegex(), "").trim()
+                val parts = cleaned.split(":")
+                var h = parts.getOrNull(0)?.toDoubleOrNull() ?: 12.0
+                val m = parts.getOrNull(1)?.toDoubleOrNull() ?: 0.0
+
+                if (isPm && h < 12.0) h += 12.0
+                if (isAm && h == 12.0) h = 0.0
+                (h + (m / 60.0)).coerceIn(0.0, 23.99)
+            }
         }
 
         // Calculate natal baseline
@@ -120,8 +129,11 @@ object AstrologyTimelineGenerator {
 
         val endYear = birthYear + 100
 
-        // Build milestone map
-        val milestones = calculateCentennialMilestones(birthYear)
+        // Build milestone map via full 101-year ephemeris calculations
+        val milestones = calculateCentennialMilestones(
+            birthYear, birthMonth, birthDay, birthHour,
+            profile.latitude, profile.longitude, natalPlanets
+        )
 
         val sb = StringBuilder()
 
@@ -303,58 +315,141 @@ object AstrologyTimelineGenerator {
         }
     }
 
-    private fun calculateCentennialMilestones(birthYear: Int): List<LifeMilestone> {
+    private fun aspectDistance(lon1: Double, lon2: Double): Double {
+        var diff = kotlin.math.abs(lon1 - lon2) % 360.0
+        if (diff > 180.0) diff = 360.0 - diff
+        return diff
+    }
+
+    private fun calculateCentennialMilestones(
+        birthYear: Int,
+        birthMonth: Int,
+        birthDay: Int,
+        birthHour: Double,
+        latitude: Double,
+        longitude: Double,
+        natalPlanets: Map<String, PlanetCalculator.PlanetPosition>
+    ): List<LifeMilestone> {
         val list = mutableListOf<LifeMilestone>()
 
-        // Saturn cycles
-        list.add(LifeMilestone(7, birthYear + 7, "Saturn Opening Square", "First encounters with social discipline and structural boundaries.", "SATURN"))
-        list.add(LifeMilestone(14, birthYear + 14, "Saturn Opposition", "Adolescent individuation and tension with authority figures.", "SATURN"))
-        list.add(LifeMilestone(21, birthYear + 21, "Saturn Closing Square", "Transition to legal adulthood and self-reliance.", "SATURN"))
-        list.add(LifeMilestone(29, birthYear + 29, "⚡ 1ST SATURN RETURN", "Major adulthood threshold. Restructuring career, shedding illusions, and committing to lifelong paths.", "SATURN"))
-        list.add(LifeMilestone(30, birthYear + 30, "Saturn Return Integration", "Establishing the new reality forged during the Saturn Return.", "SATURN"))
-        list.add(LifeMilestone(36, birthYear + 36, "Saturn Waxing Square", "Mid-course review of post-Saturn-Return responsibilities.", "SATURN"))
-        list.add(LifeMilestone(43, birthYear + 43, "Saturn 2nd Opposition", "Re-evaluating achievements and long-term stamina.", "SATURN"))
-        list.add(LifeMilestone(51, birthYear + 51, "Saturn Waning Square", "Pruning obsolete burdens to focus on highest-impact efforts.", "SATURN"))
-        list.add(LifeMilestone(59, birthYear + 59, "⚡ 2ND SATURN RETURN", "Gateway to Elder Wisdom. Retirement of worldly vanity and step into master craftsmanship.", "SATURN"))
-        list.add(LifeMilestone(73, birthYear + 73, "Saturn 3rd Opposition", "Deep acceptance and stewardship of life's harvest.", "SATURN"))
-        list.add(LifeMilestone(88, birthYear + 88, "⚡ 3RD SATURN RETURN", "Sage milestone: complete transcendence of worldly boundaries and spiritual peace.", "SATURN"))
-
-        // Jupiter returns (every ~12 years)
-        val jupTimes = listOf(
-            12 to "1st Jupiter Return: Adolescence horizon expansion",
-            24 to "2nd Jupiter Return: Young adult independence and fortune",
-            36 to "3rd Jupiter Return: Expanding mastery and community influence",
-            48 to "4th Jupiter Return: Social leadership and philosophical broadening",
-            60 to "5th Jupiter Return: Senior fruition and joyous synthesis",
-            72 to "6th Jupiter Return: Philosophical peace and legacy sharing",
-            84 to "7th Jupiter Return: Concurrence with Uranus Return; transcendent vision",
-            96 to "8th Jupiter Return: Centennial sage blessing and completion"
-        )
-        jupTimes.forEach { (age, desc) ->
-            list.add(LifeMilestone(age, birthYear + age, "Jupiter Return", desc, "JUPITER"))
+        // Precalculate 101 annual transits across the century (ages 0 to 100)
+        val annualTransits = (0..100).map { age ->
+            val calYear = birthYear + age
+            PlanetCalculator.calculatePlanets(calYear, birthMonth, birthDay, birthHour, latitude, longitude)
         }
 
-        // Nodal returns (every ~18.6 years)
-        val nodalAges = listOf(18, 37, 56, 74, 93)
-        nodalAges.forEachIndexed { idx, age ->
-            list.add(LifeMilestone(age, birthYear + age, "Nodal Return #${idx + 1}", "Destiny alignment and activation of North Node evolutionary dharma.", "NODAL"))
+        // Helper to locate exact return or aspect crossing years
+        fun findAspectCrossings(
+            planetName: String,
+            targetAspect: Double,
+            searchRanges: List<IntRange>,
+            onFound: (age: Int, calYear: Int, cycleIndex: Int) -> LifeMilestone
+        ) {
+            val natalLon = natalPlanets[planetName]?.longitude ?: return
+            searchRanges.forEachIndexed { cycleIdx, range ->
+                val bestAge = range.minByOrNull { age ->
+                    val transitLon = annualTransits.getOrNull(age)?.get(planetName)?.longitude ?: 0.0
+                    kotlin.math.abs(aspectDistance(transitLon, natalLon) - targetAspect)
+                }
+                if (bestAge != null && bestAge in 1..100) {
+                    list.add(onFound(bestAge, birthYear + bestAge, cycleIdx + 1))
+                }
+            }
         }
 
-        // Midlife transits
-        list.add(LifeMilestone(38, birthYear + 38, "Pluto Square Pluto Begins", "Deep psychic underworld journey; shedding disingenuous power dynamics.", "MIDLIFE"))
-        list.add(LifeMilestone(40, birthYear + 40, "Neptune Square Neptune", "Spiritual re-enchantment; seeing past worldly illusions.", "MIDLIFE"))
-        list.add(LifeMilestone(42, birthYear + 42, "⚡ URANUS OPPOSITION", "The Midlife Awakening: authentic liberation, sudden breakthrough shifts.", "MIDLIFE"))
+        // Saturn Returns (Conjunction, 0°) near ages 28-31, 57-61, 86-90
+        findAspectCrossings("Saturn", 0.0, listOf(28..31, 57..61, 86..90)) { age, yr, idx ->
+            val title = when (idx) {
+                1 -> "⚡ 1ST SATURN RETURN"
+                2 -> "⚡ 2ND SATURN RETURN"
+                else -> "⚡ 3RD SATURN RETURN"
+            }
+            val desc = when (idx) {
+                1 -> "Major adulthood threshold. Restructuring career, shedding illusions, and committing to lifelong paths."
+                2 -> "Gateway to Elder Wisdom. Retirement of worldly vanity and step into master craftsmanship."
+                else -> "Sage milestone: complete transcendence of worldly boundaries and spiritual peace."
+            }
+            LifeMilestone(age, yr, title, desc, "SATURN")
+        }
 
-        // Chiron Return
-        list.add(LifeMilestone(50, birthYear + 50, "Chiron Return", "Transmuting core vulnerability into compassionate healing mastery.", "CHIRON"))
+        // Saturn Oppositions (180°) near ages 14-16, 42-45, 72-75
+        findAspectCrossings("Saturn", 180.0, listOf(14..16, 42..45, 72..75)) { age, yr, idx ->
+            val title = "Saturn Opposition #$idx"
+            val desc = when (idx) {
+                1 -> "Adolescent individuation and tension with authority figures."
+                2 -> "Re-evaluating achievements, commitments, and long-term stamina."
+                else -> "Deep acceptance and stewardship of life's harvest."
+            }
+            LifeMilestone(age, yr, title, desc, "SATURN")
+        }
+
+        // Saturn Squares (90°) near ages 6-8, 20-22, 35-38, 50-53
+        findAspectCrossings("Saturn", 90.0, listOf(6..8, 20..22, 35..38, 50..53)) { age, yr, idx ->
+            val title = when (idx) {
+                1 -> "Saturn Opening Square"
+                2 -> "Saturn Closing Square"
+                3 -> "Saturn Waxing Square"
+                else -> "Saturn Waning Square"
+            }
+            val desc = when (idx) {
+                1 -> "First encounters with social discipline and structural boundaries."
+                2 -> "Transition to legal adulthood, financial self-reliance, and independent choices."
+                3 -> "Mid-course review of post-Saturn-Return responsibilities."
+                else -> "Pruning obsolete burdens to focus on highest-impact efforts."
+            }
+            LifeMilestone(age, yr, title, desc, "SATURN")
+        }
+
+        // Jupiter Returns (~11.86 year cycle: ages ~11-13, 23-25, 35-37, 47-49, 58-61, 70-73, 82-85, 94-97)
+        val jupiterRanges = listOf(11..13, 23..25, 35..37, 47..49, 58..61, 70..73, 82..85, 94..97)
+        findAspectCrossings("Jupiter", 0.0, jupiterRanges) { age, yr, idx ->
+            val desc = when (idx) {
+                1 -> "1st Jupiter Return: Adolescence horizon expansion"
+                2 -> "2nd Jupiter Return: Young adult independence and fortune"
+                3 -> "3rd Jupiter Return: Expanding mastery and community influence"
+                4 -> "4th Jupiter Return: Social leadership and philosophical broadening"
+                5 -> "5th Jupiter Return: Senior fruition and joyous synthesis"
+                6 -> "6th Jupiter Return: Philosophical peace and legacy sharing"
+                7 -> "7th Jupiter Return: Concurrence with Uranus Return; transcendent vision"
+                else -> "8th Jupiter Return: Centennial sage blessing and completion"
+            }
+            LifeMilestone(age, yr, "Jupiter Return", desc, "JUPITER")
+        }
+
+        // Uranus Opposition (180°) near ages 40-44
+        findAspectCrossings("Uranus", 180.0, listOf(40..44)) { age, yr, _ ->
+            LifeMilestone(age, yr, "⚡ URANUS OPPOSITION", "The Midlife Awakening: authentic liberation, sudden breakthrough shifts.", "MIDLIFE")
+        }
+
+        // Uranus Return (0°) near ages 82-86
+        findAspectCrossings("Uranus", 0.0, listOf(82..86)) { age, yr, _ ->
+            LifeMilestone(age, yr, "⚡ URANUS RETURN", "Completion of full 84-year solar-orbital journey: revolutionary clarity and cosmic homecoming.", "URANUS")
+        }
+
+        // Chiron Return (0°) near ages 49-52
+        findAspectCrossings("Chiron", 0.0, listOf(48..53)) { age, yr, _ ->
+            LifeMilestone(age, yr, "Chiron Return", "Transmuting core vulnerability into compassionate healing mastery.", "CHIRON")
+        }
+
+        // Nodal Returns (18.6-year cycle: ~18-20, 36-38, 55-57, 73-76, 92-95)
+        val nodalRanges = listOf(18..20, 36..38, 55..57, 73..76, 92..95)
+        findAspectCrossings("North Node", 0.0, nodalRanges) { age, yr, idx ->
+            LifeMilestone(age, yr, "Nodal Return #$idx", "Destiny alignment and activation of North Node evolutionary dharma.", "NODAL")
+        }
+
+        // Midlife Pluto & Neptune squares
+        findAspectCrossings("Pluto", 90.0, listOf(36..45)) { age, yr, _ ->
+            LifeMilestone(age, yr, "Pluto Square Pluto", "Deep psychic underworld journey; shedding disingenuous power dynamics.", "MIDLIFE")
+        }
+        findAspectCrossings("Neptune", 90.0, listOf(39..44)) { age, yr, _ ->
+            LifeMilestone(age, yr, "Neptune Square Neptune", "Spiritual re-enchantment; seeing past worldly illusions.", "MIDLIFE")
+        }
 
         // Progressed Moon Returns (~27.3 years)
-        list.add(LifeMilestone(27, birthYear + 27, "Progressed Moon Return #1", "Emotional maturation and internal autonomy.", "PROGRESSED_MOON"))
-        list.add(LifeMilestone(54, birthYear + 54, "Progressed Moon Return #2", "Emotional culmination and inner stability.", "PROGRESSED_MOON"))
-        list.add(LifeMilestone(82, birthYear + 82, "Progressed Moon Return #3", "Deep emotional tranquility and inner peace.", "PROGRESSED_MOON"))
-
-        // Uranus Return (age 84)
-        list.add(LifeMilestone(84, birthYear + 84, "⚡ URANUS RETURN", "Completion of full 84-year solar-orbital journey: revolutionary clarity and cosmic homecoming.", "URANUS"))
+        val progMoonAges = listOf(27, 54, 82)
+        progMoonAges.forEachIndexed { i, a ->
+            list.add(LifeMilestone(a, birthYear + a, "Progressed Moon Return #${i + 1}", "Emotional maturation, inner autonomy, and soul peace.", "PROGRESSED_MOON"))
+        }
 
         return list.sortedBy { it.age }
     }
