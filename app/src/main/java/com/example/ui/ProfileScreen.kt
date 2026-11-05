@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.SyncAlt
@@ -23,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -114,7 +116,11 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                    ) {
                         Text(
                             text = profile.name,
                             style = MaterialTheme.typography.headlineMedium,
@@ -138,33 +144,65 @@ fun ProfileScreen(
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
-                    var expanded by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { expanded = true }) {
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        IconButton(
+                            onClick = onNavigateToSettings,
+                            modifier = Modifier.testTag("profile_settings_button")
+                        ) {
                             Icon(
-                                Icons.Default.MoreVert,
-                                contentDescription = "Settings",
+                                Icons.Default.Settings,
+                                contentDescription = "App Settings",
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("App Settings") },
-                                onClick = {
-                                    expanded = false
-                                    onNavigateToSettings()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Backup & Sync") },
-                                onClick = {
-                                    expanded = false
-                                    onNavigateToSyncSettings()
-                                }
-                            )
+
+                        var expanded by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(
+                                onClick = { expanded = true },
+                                modifier = Modifier.testTag("profile_more_options_button")
+                            ) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "More Options",
+                                    tint = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("App Settings") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.Settings,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        expanded = false
+                                        onNavigateToSettings()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Backup & Sync") },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.SyncAlt,
+                                            contentDescription = null
+                                        )
+                                    },
+                                    onClick = {
+                                        expanded = false
+                                        onNavigateToSyncSettings()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -390,6 +428,27 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth().height(56.dp)
                 ) {
                     Text("Deep Dive: Life Story")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .testTag("profile_bottom_settings_button"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("App Settings & Preferences", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
